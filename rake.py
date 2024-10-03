@@ -1,23 +1,35 @@
 import nltk
 from rake_nltk import Rake
-# nltk.download('stopwords')
 
-# Sample text
-f = open("train.wp_source", "r")
-# text = "Natural Language Processing (NLP) is a field of Artificial Intelligence concerned with enabling computers to understand and process human language. It is used to apply machine learning algorithms to text and speech. NLP is used in a variety of applications, such as language translation, sentiment analysis, and chatbots."
+# download only once - uncomment and run these 2 lines once and then comment them out
+# nltk.download('stopwords')
+# nltk.download('punkt_tab')
+
+
+f = open("test.wp_source", "r")
 text = f.read()
 
-# Preprocess (replace with your cleaning steps)
-text = text.lower() # Lowercase for case-insensitive stop word removal
+# Preprocessing
+text = text.lower() 
 
-# NLTK stop words
-stop_words = nltk.corpus.stopwords.words('english')
+# splitting corpus based on '.'
+sentences = [sentence.strip() for sentence in text.split('.') if sentence.strip()]
 
-# RAKE initialization
-r = Rake(stopwords=stop_words)
 
-# Extract keywords
-keywords = r.extract_keywords_from_text(text)
+for line in sentences:
 
-# Print top 3 keywords
-print(r.get_ranked_phrases()[:10])
+
+    stop_words = nltk.corpus.stopwords.words('english')
+    r = Rake(stopwords=stop_words)
+    keywords = r.extract_keywords_from_text(line)
+
+    print(f"Sentence: {line}")
+    keyword_lst = r.get_ranked_phrases()[:10]
+    print(f"Keywords: {keyword_lst}")
+    keyword_lst = r.get_ranked_phrases_with_scores()
+    print("\n")
+    print("Similarity Scores:")
+    for elem in keyword_lst:
+        print(f"{elem[1]} : {elem[0]}")
+    
+    print("\n---------------------------\n")
