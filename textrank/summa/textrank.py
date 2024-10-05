@@ -1,12 +1,8 @@
 import argparse
 import os
-import sys
-import warnings
-import nltk
 
 from summa.summarizer import summarize
 from summa.keywords import keywords
-
 
 # Types of summarization
 SENTENCE = 0
@@ -17,7 +13,6 @@ DEFAULT_RATIO = 0.3
 def get_test_file_path(file):
     pre_path = os.path.join(os.path.dirname(__file__), 'test_data')
     return os.path.join(pre_path, file)
-
 
 def get_text_from_test_data(file):
     file_path = get_test_file_path(file)
@@ -30,7 +25,6 @@ def textrank(text, summarize_by=SENTENCE, ratio=DEFAULT_RATIO, words=None, addit
     else:
         return keywords(text, ratio, words, additional_stopwords=additional_stopwords)
 
-
 def existing_file(file_name):
     try:
         with open(file_name, 'r') as file:
@@ -38,13 +32,11 @@ def existing_file(file_name):
     except Exception:
         raise argparse.ArgumentTypeError("The file provided could not be opened.")
 
-
 def restricted_float(x):
     x = float(x)
     if x < 0.0 or x > 1.0:
         raise argparse.ArgumentTypeError("{} not in range [0.0, 1.0]".format(x))
     return x
-
 
 def parse_args(args):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, prog="textrank", description="Extract the most relevant sentences or keywords of a given text using the TextRank algorithm.")
@@ -70,46 +62,31 @@ def parse_args(args):
 
     return parser.parse_args(args)
 
+def textrank_for_story(text):
+    mode = SENTENCE
+    ratio = DEFAULT_RATIO
+    additional_stopwords = None  
+   
+    # Make a summary of the text
+    words = len(text.split()) * DEFAULT_RATIO  # Number of words in the summary
+    generated_summary = textrank(text, mode, ratio=ratio, words=words, additional_stopwords=additional_stopwords)  # Generate summary
+    return generated_summary # Return the summary
 
 def main():
-    # Hardcoded text paragraph
-    text = """I’m someone who loves learning and exploring new ideas. Whether it’s understanding 
+    """
+    Main function to run textrank as an example for story generation
+    """
+
+    text = """I'm someone who loves learning and exploring new ideas. Whether it's understanding 
     how things work or diving into books and projects, I enjoy the challenge of figuring things out. 
-    I like spending time working on creative tasks, whether it’s solving problems with code or thinking 
-    about big ideas. When I’m not busy with work or school, I enjoy relaxing by listening to music, 
-    reading, or going for walks to clear my mind. I’m also a fan of having deep conversations about life, 
+    I like spending time working on creative tasks, whether it's solving problems with code or thinking 
+    about big ideas. When I'm not busy with work or school, I enjoy relaxing by listening to music, 
+    reading, or going for walks to clear my mind. I'm also a fan of having deep conversations about life, 
     society, and what makes people tick. Overall, I enjoy balancing hard work with moments of peace and 
     reflection."""
 
-    text1 = """The sun is a massive star located at the center of our solar system. It provides 
-    light and heat, making life possible on Earth. Without the sun, our planet would be too cold for 
-    most living things to survive. The sun is composed mostly of hydrogen and helium, and it undergoes 
-    a process called nuclear fusion, which generates energy. This energy travels through space and 
-    reaches Earth in about eight minutes. The sun also influences weather patterns and helps plants 
-    grow by providing them with the energy they need to produce food through photosynthesis."""
-
-
-    mode = SENTENCE  
-
-    ratio = DEFAULT_RATIO
-    
-    additional_stopwords = None  
-   
-    # print(textrank(text, mode, ratio=ratio, words=words, additional_stopwords=additional_stopwords))
-    
-    #additional_stoplist = nltk.corpus.stopwords.words('english')
-    
-    # Makes a summary of the text.
-    words = len(text.split())*0.3
-    # generated_summary = summarize(text,additional_stopwords=additional_stoplist)
-    generated_summary = textrank(text, mode, ratio=ratio, words=words, additional_stopwords=additional_stopwords)
-    print("Text:")
-    print(text)
-    print("\n")
     print("Summarized text:")
-    print(generated_summary)
-
-
+    print(textrank_for_story(text))
 
 if __name__ == "__main__":
     main()
