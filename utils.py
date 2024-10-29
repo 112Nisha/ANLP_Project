@@ -4,7 +4,7 @@ from gensim.models import Word2Vec
 import nltk
 import re
 
-from get_outline import generate_outline
+# from get_outline import generate_outline
 
 # def clean_training_data()
 
@@ -35,38 +35,42 @@ def get_nth_line_from_file(file, n):
             return line.strip()
     return None
 
-def load_text_and_model(embedding_dimension, prompt_file_path, story_file_path, model=True):
-    if model:
-        model = Word2Vec(vector_size=embedding_dimension, window=5, min_count=1, workers=4)
+# def load_text_and_model(embedding_dimension, prompt_file_path, story_file_path, model=True, second_tr=False):
+#     if model:
+#         model = Word2Vec(vector_size=embedding_dimension, window=5, min_count=1, workers=4)
     
-    inputs = []
-    targets = []
-    with open(prompt_file_path) as prompt_file:
-        with open(story_file_path) as story_file:
-            for i in range(10):
-                prompt_file.seek(0)
-                story_file.seek(0)
-                prompt = get_nth_line_from_file(prompt_file, i)
-                story = get_nth_line_from_file(story_file, i)
-                outline = generate_outline(story)
-                if prompt is not None and outline is not None:
-                    tokenized_sentence = tokenize(prompt)
+#     inputs = []
+#     targets = []
+#     with open(prompt_file_path) as prompt_file:
+#         with open(story_file_path) as story_file:
+#             for i in range(10):
+#                 prompt_file.seek(0)
+#                 story_file.seek(0)
+#                 prompt = get_nth_line_from_file(prompt_file, i)
+#                 story = get_nth_line_from_file(story_file, i)
+#                 outline = generate_outline(story)
+#                 if prompt is not None and outline is not None:
+#                     tokenized_sentence = tokenize(prompt)
 
-                    if model:
-                        if i == 0:
-                            model.build_vocab([tokenized_sentence], update=False)
-                        else:
-                            model.build_vocab([tokenized_sentence], update=True)
-                        model.train([tokenized_sentence], total_examples=1, epochs=1)
+#                     if model:
+#                         if i == 0:
+#                             model.build_vocab([tokenized_sentence], update=False)
+#                         else:
+#                             model.build_vocab([tokenized_sentence], update=True)
+#                         model.train([tokenized_sentence], total_examples=1, epochs=1)
 
-                    input_prompt = '<start>' + prompt + '<sep>' + outline
-                    inputs.append(input_prompt)
-                    output_prompt = prompt + '<sep>' + outline + '<end>'
-                targets.append(output_prompt)
-    if model:
-        return model, inputs, targets
-    else:
-        return inputs, targets
+#                     input_prompt = '<start>' + prompt + '<sep>' + outline
+#                     if second_tr:
+#                         input_prompt = '<start>' + prompt + '<sep>' + outline + '<sep>' + story
+#                     inputs.append(input_prompt)
+#                     output_prompt = prompt + '<sep>' + outline + '<end>'
+#                     if second_tr:
+#                         output_prompt = prompt + '<sep>' + outline + '<sep>' + story + '<end>'
+#                 targets.append(output_prompt)
+#     if model:
+#         return model, inputs, targets
+#     else:
+#         return inputs, targets
 
 class TextDataset(Dataset):
     def __init__(self, input_prompts, targets):
@@ -108,10 +112,9 @@ def tokenize(input):
         output.append(prompt)
     return output
 
-def word2vec_embeddings(model, text):
+# def word2vec_embeddings(model, text):
     # if model is None:
     #     model = Word2Vec(vector_size=100, window=5, min_count=1, workers=4)
     
 
 # def collate_fn(batch):
-    

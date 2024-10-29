@@ -1,3 +1,9 @@
-Necessary dependancies
+Necessary dependencies
 
-['buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo', 'det stora farliga rymdprojektet går åt pipan', 'tub gnihtyreve uoy yas dna kniht si drawkcab']
+pip install the following:
+
+nltk
+gensim.models
+torch
+rake_nltk
+summa
