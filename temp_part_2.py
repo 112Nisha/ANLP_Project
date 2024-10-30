@@ -11,7 +11,7 @@ from temp_outline_transformer import StoryTransformer
 MAX_LEN = 512 # change it 2048
 BATCH_SIZE = 2 # change it to 8
 CHUNK_SIZE = 3 # change it to 1000
-EMBEDDING_DIM = 300
+EMBEDDING_DIM = 512
 NUM_HEADS = 4
 NUM_DECODERS = 1
 FF_DIM = 300
@@ -56,20 +56,27 @@ class TextDataset(Dataset):
         input_sequence = prompt + " <s> " + outline + " <sep> "
         if self.isTrain:
             input_sequence += story
-        
-        input_sequence_indices = [self.word2index[word] if word in self.word2index else self.word2index['<unk>'] for word in input_sequence]
-        story_indices = [self.word2index[word] if word in self.word2index else self.word2index['<unk>'] for word in story]
-        return torch.tensor(input_sequence_indices), torch.tensor(story_indices)
 
-def collate_fn(batch, tokenizer):
-    input_seqs, target_seqs = zip(*batch) 
-    input_seqs_padded = pad_sequence(input_seqs, batch_first=True, padding_value=tokenizer.pad_token_id)
-    target_seqs_padded = pad_sequence(target_seqs, batch_first=True, padding_value=tokenizer.pad_token_id)
+        input_sequence_indices = [self.word2index.get(word, self.word2index['<unk>']) for word in input_sequence.split()]
+        story_indices = [self.word2index.get(word, self.word2index['<unk>']) for word in story.split()] if story else []
+        return input_sequence_indices, story_indices
+
+def collate_fn(batch):
+    input_seqs, target_seqs = zip(*batch)
+        
+    # Pad smaller sequences and truncate larger sequences
+    input_seqs_padded = [seq[:MAX_LEN] if len(seq) > MAX_LEN else seq + [0] * (MAX_LEN - len(seq)) for seq in input_seqs]
+    target_seqs_padded = [seq[:MAX_LEN] if len(seq) > MAX_LEN else seq + [0] * (MAX_LEN - len(seq)) for seq in target_seqs]
+    
+    # Convert to tensors and move to the device
+    input_seqs_padded = torch.tensor(input_seqs_padded)
+    target_seqs_padded = torch.tensor(target_seqs_padded)
+    
     return input_seqs_padded, target_seqs_padded
 
 def get_data_loader(tokenized_data, tokenizer, vocab, train=True):
     dataset = TextDataset(tokenized_data, tokenizer, vocab.word_to_index, vocab.index_to_word, train)
-    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn, tokenizer=tokenizer))
+    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn))
 
 def get_sentences(filename):
     with open(filename, 'r') as file:
@@ -88,8 +95,10 @@ def train(model, train_loader, optimizer, device, loss_function):
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
         outputs = model(input_seq, target_seq)
-        loss = loss_function(outputs, target_seq)
         print('------------')
+        print(len(input_seq[0]))
+        print(len(target_seq[0]))
+        loss = loss_function(outputs, target_seq)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()

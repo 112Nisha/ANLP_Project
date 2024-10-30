@@ -39,15 +39,15 @@ class StoryTransformer(nn.Module):
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_block, num_layers=num_decoders)
         self.hidden_layer = nn.Linear(embedding_dimension, num_existing_vectors + 1)
     
-    def forward(self, input_word, target):
-        input_word = self.embedding(input_word)
-        input_word = self.positional_encoding(input_word, self.embedding_dimension, self.device)
+    def forward(self, input_seq, target):
+        input_seq = self.embedding(input_seq)
+        input_seq = self.positional_encoding(input_seq, self.embedding_dimension, self.device)
 
         target = self.embedding(target)
         target = self.positional_encoding(target, self.embedding_dimension, self.device)
 
         target_mask = causal_masking(target.size(1)).to(self.device)
 
-        output = self.decoder(target, input_word, tgt_mask=target_mask)
+        output = self.decoder(target, input_seq, tgt_mask=target_mask)
         output = self.hidden_layer(output)
         return output
