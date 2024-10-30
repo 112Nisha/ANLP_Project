@@ -95,9 +95,10 @@ def train(model, train_loader, optimizer, device, loss_function):
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
         outputs = model(input_seq, target_seq)
-        print('------------')
-        print(len(input_seq[0]))
-        print(len(target_seq[0]))
+        # print('------------')
+        # print(outputs.shape)
+        # print(input_seq.shape)
+        # print(target_seq.shape)
         loss = loss_function(outputs, target_seq)
         loss.backward()
         optimizer.step()
@@ -110,7 +111,7 @@ def evaluate(model, loader, device,loss_function):
     with torch.no_grad():
         for input_seq, target_seq in loader:
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
-            outputs = model(input_seq)
+            outputs = model(input_seq, target_seq)
             loss = loss_function(outputs, target_seq)
             total_loss += loss.item()
     return total_loss / len(loader)
