@@ -71,21 +71,9 @@ class TextDataset(Dataset):
         if self.isTrain:
             input_sequence += story
         
-        # return torch.tensor(input_sequence),torch.tensor(story)
-        # input_tensor = torch.tensor(self.tokenizer.encode(input_sequence))
-        # target_tensor = torch.tensor(self.tokenizer.encode(story))
-        # return input_tensor, target_tensor
         input_sequence_indices = [self.word2index[word] if word in self.word2index else self.word2index['<unk>'] for word in input_sequence]
         story_indices = [self.word2index[word] if word in self.word2index else self.word2index['<unk>'] for word in story]
         return torch.tensor(input_sequence_indices), torch.tensor(story_indices)
-        # Encode input and target sequences using the tokenizer
-        # input_tensor = torch.tensor(self.tokenizer.encode(input_sequence), dtype=torch.long)
-        # target_tensor = torch.tensor(self.tokenizer.encode(story), dtype=torch.long)
-         
-        # decoded_input = torch.tensor(self.tokenizer.decode(input_tensor.tolist(), skip_special_tokens=True))
-        # decoded_target = torch.tensor(self.tokenizer.decode(target_tensor.tolist(), skip_special_tokens=True))
-        # return decoded_input, decoded_target
-        # return input_tensor, target_tensor
 
 def collate_fn(batch, tokenizer):
     input_seqs, target_seqs = zip(*batch) 
@@ -96,27 +84,6 @@ def collate_fn(batch, tokenizer):
 def get_data_loader(tokenized_data, tokenizer, vocab, train=True):
     dataset = TextDataset(tokenized_data, tokenizer, vocab.word_to_index,vocab.index_to_word,train)
     return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn, tokenizer=tokenizer))
-
-# class TextDataset(Dataset):
-#     def __init__(self, data, tokenizer, train=False):
-#         self.data = data
-#         self.isTrain = train
-#         self.tokenizer = tokenizer
-
-#     def __len__(self):
-#         return len(self.data)
-
-#     def __getitem__(self, idx):
-#         # input_sequence = self.data[idx]['prompt'].tolist() + "<s>" + self.data[idx]['outline'].tolist() + "<sep>"
-#         input_sequence = self.data[idx]['prompt'] + "<s>" + self.data[idx]['outline'] + "<sep>"
-#         if self.isTrain:
-#             input_sequence += self.data[idx]['story']
-#         input_sequence = torch.tensor(self.tokenizer.encode(input_sequence))
-#         return input_sequence[:MAX_LEN], self.data[idx]['story']
-
-# def get_data_loader(tokenized_data, tokenizer,train=True):
-#     dataset = TextDataset(tokenized_data, tokenizer,train)
-#     return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 def get_sentences(filename):
     with open(filename, 'r') as file:
