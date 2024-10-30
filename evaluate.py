@@ -1,20 +1,13 @@
-import torch
-import torch.nn.functional as F
-from torch.nn.functional import softmax
 import re
-from torch.utils.data import TensorDataset
+import torch
+from torch.nn.functional import softmax
 from stanfordnlp.server import CoreNLPClient
-from transformers import BertTokenizer, BertForSequenceClassification, BertConfig, Trainer, TrainingArguments
-from transformers import DataCollatorWithPadding
-from torch.utils.data import Dataset
+from transformers import BertTokenizer, BertForSequenceClassification
 
 BATCH_SIZE = 8
 
-
 def calculate_perplexity(loss_value):
-    loss_tensor = torch.tensor(loss_value)
-    perplexity = torch.exp(loss_tensor)
-    return perplexity
+    return torch.exp(torch.tensor(loss_value))
 
 # Assuming there's only one generated text
 # Pass words
@@ -115,7 +108,6 @@ def get_nth_line_from_file(filename,line_number):
             curr_index += 1
     return None
 
-
 def preprocess(text):
     cleaned_text = text.replace("<newline>", "")
     output = re.sub(r'([.,!?;:*()"\'“”‘’_\u2014-])', r' \1 ', cleaned_text)
@@ -148,6 +140,6 @@ def main():
     val = compute_unknown_percentage(tagged_pairs)
     print(val)
     pass
+
 if __name__ == "__main__":
     main()
-

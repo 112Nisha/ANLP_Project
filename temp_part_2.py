@@ -93,8 +93,6 @@ def collate_fn(batch, tokenizer):
     target_seqs_padded = pad_sequence(target_seqs, batch_first=True, padding_value=tokenizer.pad_token_id)
     return input_seqs_padded, target_seqs_padded
 
-
-
 def get_data_loader(tokenized_data, tokenizer, vocab, train=True):
     dataset = TextDataset(tokenized_data, tokenizer, vocab.word_to_index,vocab.index_to_word,train)
     return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn, tokenizer=tokenizer))
@@ -195,8 +193,7 @@ def main():
         # CHANGE THIS
         # train_data = train_data[:100]
         train_loader = get_data_loader(train_data, tokenizer,model,True)
-        
-        
+
         print(f"Training on chunk {i}")
         for epoch in range(10):
             train_loss = train(model, train_loader, optimizer, device,loss_fn)

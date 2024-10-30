@@ -20,8 +20,6 @@ class OutlineTransformer(nn.Module):
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_block, num_layers=num_decoders)
         self.hidden_layer = nn.Linear(embedding_dimension, num_existing_vectors + 1)
         self.index_to_word = list(embedding_matrix.index_to_key) + ['<unk>']
-
-
     
     def forward(self, prompt):
         inference = False
@@ -41,4 +39,3 @@ class OutlineTransformer(nn.Module):
         output = self.hidden_layer(output)
 
         return output
-
