@@ -1,0 +1,3 @@
+MAX_LEN = 512 # change it 2048
+BATCH_SIZE = 8
+CHUNK_SIZE = 1000

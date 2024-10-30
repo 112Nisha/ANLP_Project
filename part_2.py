@@ -2,12 +2,9 @@ import torch
 from outline_transformer import OutlineTransformer
 from torch.utils.data import Dataset, DataLoader
 import re
-from utils import get_nth_line_from_file, preprocess
+from params import MAX_LEN, BATCH_SIZE, CHUNK_SIZE
+from utils import get_nth_line_from_file
 from transformers import GPT2Tokenizer
-
-MAX_LEN = 512 # change it 2048
-BATCH_SIZE = 8
-CHUNK_SIZE = 1000
 
 def preprocess(text):
     cleaned_text = text.replace("<newline>", "")
@@ -82,8 +79,8 @@ def main():
     with open("writingPrompts/train.wp_source", 'r') as fp:
         lines = len(fp.readlines())
     num_chunks = lines // CHUNK_SIZE
-    model = OutlineTransformer()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = OutlineTransformer(device=device, embedding_matrix=None)
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters())
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')

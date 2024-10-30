@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-
+from params import MAX_LEN, BATCH_SIZE, CHUNK_SIZE
 from utils import get_sinusoidal_positional_encoding, causal_masking, tokenize
 
 class OutlineTransformer(nn.Module):
-    def __init__(self, embedding_dimension, embedding_matrix, num_attention_heads, num_decoders, feed_forward_dim, dropout_rate, device):
+    def __init__(self, device, embedding_matrix, embedding_dimension=MAX_LEN, num_attention_heads=8, num_decoders=4, feed_forward_dim=MAX_LEN, dropout_rate=0.1):
         super(OutlineTransformer, self).__init__()
         self.device = device
         self.word_to_index = embedding_matrix.key_to_index
