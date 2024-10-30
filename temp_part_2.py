@@ -84,22 +84,12 @@ def get_sentences(filename):
 def train(model, train_loader, optimizer, device, loss_function):
     model.train()
     total_loss = 0
-    print("START")
     for input_seq, target_seq in train_loader:
-        # print("IN")
-        # print(input_seq)
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
-        outputs = model(input_seq)
-        target_seq = target_seq[:, :33]
-        outputs = outputs.view(2, -1)
-        target_seq = target_seq.float()
-        outputs = outputs.float()
-        # outputs = outputs.reshape(target_seq.shape[0], target_seq.shape[1])
-        # print("Input: ",input_seq.shape)
-        # print("Output: ",outputs.shape)
-        # print("Target: ",target_seq.shape)
+        outputs = model(input_seq, target_seq)
         loss = loss_function(outputs, target_seq)
+        print('------------')
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -108,16 +98,10 @@ def train(model, train_loader, optimizer, device, loss_function):
 def evaluate(model, loader, device,loss_function):
     model.eval()
     total_loss = 0
-
     with torch.no_grad():
         for input_seq, target_seq in loader:
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
             outputs = model(input_seq)
-            target_seq = target_seq[:, :33]
-            outputs = outputs.view(2, -1)
-            target_seq = target_seq.float()
-            outputs = outputs.float()
-            
             loss = loss_function(outputs, target_seq)
             total_loss += loss.item()
     return total_loss / len(loader)
@@ -132,7 +116,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     sentences = get_sentences("temp_train.txt")
     # CHANGE THIS
-    sentences = sentences[:100]
+    # sentences = sentences[:100]
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
     word2vec_model = Word2Vec(sentences, vector_size=EMBEDDING_DIM, window=5, min_count=1, workers=4)
