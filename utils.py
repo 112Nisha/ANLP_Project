@@ -30,9 +30,14 @@ def get_nth_line_from_file(file, n):
     :param n: int, Line number to retrieve (1-based index).
     :return: str, The nth line from the file or None if line doesn't exist.
     """
-    for current_line_number, line in enumerate(file, start=1):
-        if current_line_number == n:
-            return line.strip()
+    # for current_line_number, line in enumerate(file, start=0):
+    #     if current_line_number == n:
+    #         return line.strip()
+    # return None
+    with open(file, 'r') as file:
+        for current_line_number, line in enumerate(file, start=0):
+            if current_line_number == n:
+                return line.strip()
     return None
 
 # def load_text_and_model(embedding_dimension, prompt_file_path, story_file_path, model=True, second_tr=False):

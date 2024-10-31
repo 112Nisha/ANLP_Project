@@ -16,6 +16,10 @@ NUM_HEADS = 4
 NUM_DECODERS = 1
 FF_DIM = 300
 DROPOUT_RATE = 0.1
+NUM_EPOCHS = 5
+
+# SHOULD WE USE DROPOUT AND A SCHEDULER TO REDUCE OVERFITTING?
+# SHOULD WE BE USING THE GPT2 TOKENIZER? bECAUSE IT'S FOR SUMMARIZATION TASKS SPECIFICALLY.
 
 def preprocess(text):
     if text is None:
@@ -85,7 +89,8 @@ def get_sentences(filename):
     for line in lines:
         line = line.strip()
         line = preprocess(line)
-        sentences.append(line)
+        words = line.split()
+        sentences.append(words)
     return sentences
 
 def train(model, train_loader, optimizer, device, loss_function):
@@ -123,27 +128,31 @@ def main():
     num_chunks = lines // CHUNK_SIZE
     # print("Number of lines: ",lines)
     # print("Number of chunks: ",num_chunks)
+    # Num of lines = 30, num_chunks is 10, batch size is 2, chunk_size = 3
+    # 1 -> 0-5, 2 -> 6-11, 3 -> 12-17, 4 -> 18-23, 5 -> 24-29, 6 -> 30-36
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    sentences = get_sentences("temp_train.txt")
-    # CHANGE THIS
-    # sentences = sentences[:100]
+    sentences_train = get_sentences("temp_train.txt")
+    sentences_target = get_sentences("temp_train_target.txt")
+    sentences = sentences_train + sentences_target
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
     word2vec_model = Word2Vec(sentences, vector_size=EMBEDDING_DIM, window=5, min_count=1, workers=4)
     model = StoryTransformer(EMBEDDING_DIM, word2vec_model.wv, NUM_HEADS, NUM_DECODERS, FF_DIM, DROPOUT_RATE, device)
     model.to(device)
+    # print(list(model.word_to_index.items())[1700:1800])
     optimizer = torch.optim.Adam(model.parameters())
     loss_fn = torch.nn.CrossEntropyLoss()
     for i in range(num_chunks):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
-        # CHANGE THIS
-        # train_data = train_data[:100]
         train_loader = get_data_loader(train_data, tokenizer, model,True)
         print(f"Training on chunk {i}")
-        for epoch in range(10):
+        for epoch in range(NUM_EPOCHS):
             train_loss = train(model, train_loader, optimizer, device,loss_fn)
-            print(f"Epoch {epoch} train loss: {train_loss}")
-            print(f"Epoch {epoch} eval loss: {evaluate(model, train_loader, device, loss_fn)}")
+            # CHANGE THIS TO VALIDATION_LOADER
+            eval_loss = evaluate(model, train_loader, device, loss_fn)
+            print(f"Epoch {epoch+1} train loss: {train_loss}")
+            print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
     torch.save(model.state_dict(), "model.pth")
 
