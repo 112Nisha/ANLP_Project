@@ -20,6 +20,9 @@ NUM_EPOCHS = 5
 
 # SHOULD WE USE DROPOUT AND A SCHEDULER TO REDUCE OVERFITTING?
 # SHOULD WE BE USING THE GPT2 TOKENIZER? bECAUSE IT'S FOR SUMMARIZATION TASKS SPECIFICALLY.
+# Consider using a learning rate scheduler
+# Add gradient clipping to prevent exploding gradients
+# check if <unk> is in the vocab - add to vocab if it's not there
 
 def preprocess(text):
     if text is None:
@@ -78,8 +81,8 @@ def collate_fn(batch):
     
     return input_seqs_padded, target_seqs_padded
 
-def get_data_loader(tokenized_data, tokenizer, vocab, train=True):
-    dataset = TextDataset(tokenized_data, tokenizer, vocab.word_to_index, vocab.index_to_word, train)
+def get_data_loader(tokenized_data, tokenizer, model, train=True):
+    dataset = TextDataset(tokenized_data, tokenizer, model.word_to_index, model.index_to_word, train)
     return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn))
 
 def get_sentences(filename):
@@ -104,6 +107,8 @@ def train(model, train_loader, optimizer, device, loss_function):
         # print(outputs.shape)
         # print(input_seq.shape)
         # print(target_seq.shape)
+        print(model.word_to_index)
+        print(target_seq)
         loss = loss_function(outputs, target_seq)
         loss.backward()
         optimizer.step()
@@ -146,7 +151,7 @@ def main():
     loss_fn = torch.nn.CrossEntropyLoss()
     for i in range(num_chunks):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
-        train_loader = get_data_loader(train_data, tokenizer, model,True)
+        train_loader = get_data_loader(train_data, tokenizer, model, True)
         print(f"Training on chunk {i}")
         for epoch in range(NUM_EPOCHS):
             train_loss = train(model, train_loader, optimizer, device,loss_fn)
