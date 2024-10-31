@@ -17,6 +17,7 @@ NUM_DECODERS = 1
 FF_DIM = 300
 DROPOUT_RATE = 0.1
 NUM_EPOCHS = 5
+# torch.set_printoptions(threshold=torch.inf)
 
 # SHOULD WE USE DROPOUT AND A SCHEDULER TO REDUCE OVERFITTING?
 # SHOULD WE BE USING THE GPT2 TOKENIZER? bECAUSE IT'S FOR SUMMARIZATION TASKS SPECIFICALLY.
@@ -83,7 +84,7 @@ def collate_fn(batch):
 
 def get_data_loader(tokenized_data, tokenizer, model, train=True):
     dataset = TextDataset(tokenized_data, tokenizer, model.word_to_index, model.index_to_word, train)
-    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn))
+    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=partial(collate_fn))
 
 def get_sentences(filename):
     with open(filename, 'r') as file:
@@ -102,13 +103,13 @@ def train(model, train_loader, optimizer, device, loss_function):
     for input_seq, target_seq in train_loader:
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
-        outputs = model(input_seq, target_seq)
-        # print('------------')
-        # print(outputs.shape)
-        # print(input_seq.shape)
-        # print(target_seq.shape)
-        print(model.word_to_index)
-        print(target_seq)
+        outputs = model(input_seq, target_seq)  # [batch_size, sequence_length, vocab_size]
+        
+        # Reshape to [batch_size * sequence_length, vocab_size]
+        outputs = outputs.view(-1, outputs.size(-1))  # [1024, 1828]
+        target_seq = target_seq.view(-1)              # [1024]
+
+        # Calculate the loss
         loss = loss_function(outputs, target_seq)
         loss.backward()
         optimizer.step()
@@ -122,6 +123,8 @@ def evaluate(model, loader, device,loss_function):
         for input_seq, target_seq in loader:
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
             outputs = model(input_seq, target_seq)
+            outputs = outputs.view(-1, outputs.size(-1))  # [1024, 1828]    
+            target_seq = target_seq.view(-1)              # [1024]
             loss = loss_function(outputs, target_seq)
             total_loss += loss.item()
     return total_loss / len(loader)

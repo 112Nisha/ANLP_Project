@@ -37,7 +37,7 @@ class StoryTransformer(nn.Module):
         self.positional_encoding = get_embedding_with_positional_encoding
         decoder_block = nn.TransformerDecoderLayer(embedding_dimension, num_attention_heads, feed_forward_dim, dropout_rate, batch_first=True, device=device)
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_block, num_layers=num_decoders)
-        self.hidden_layer = nn.Linear(embedding_dimension, embedding_dimension)
+        self.hidden_layer = nn.Linear(embedding_dimension, num_existing_vectors+1)
     
     def forward(self, input_seq, target):
         input_seq = self.embedding(input_seq)
