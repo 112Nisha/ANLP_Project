@@ -132,6 +132,7 @@ def main():
     # 1 -> 0-5, 2 -> 6-11, 3 -> 12-17, 4 -> 18-23, 5 -> 24-29, 6 -> 30-36
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # These 3 lines made the code break - adding sentences_target (this increases vocab size)
     sentences_train = get_sentences("temp_train.txt")
     sentences_target = get_sentences("temp_train_target.txt")
     sentences = sentences_train + sentences_target
