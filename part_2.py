@@ -50,7 +50,6 @@ class TextDataset(Dataset):
         if self.isTrain:
             input_sequence += story
 
-        
         input_sequence_indices = self.tokenizer.encode(input_sequence, truncation=True, padding='max_length', max_length=MAX_LEN, return_tensors='pt').squeeze()
         if story:
             story_indices = self.tokenizer.encode(story, truncation=True, padding='max_length', max_length=MAX_LEN, return_tensors='pt').squeeze()
@@ -58,7 +57,6 @@ class TextDataset(Dataset):
             pad_index = self.word2index['<pad>']
             story_indices = torch.full((MAX_LEN,), pad_index, dtype=torch.long)
         return input_sequence_indices, story_indices
-
 
 def get_data_loader(tokenized_data, tokenizer, model, train=True):
     dataset = TextDataset(tokenized_data, tokenizer, model.word_to_index, model.index_to_word, train)
@@ -76,37 +74,21 @@ def decode_output(model, outputs):
         print(f"Decoded Sentence {i+1}: ", sentence)
         print("\n")
 
-
-def get_sentences(filename):
-    with open(filename, 'r') as file:
-        lines = file.readlines()
-    sentences = []
-    for line in lines:
-        line = line.strip()
-        line = preprocess(line)
-        words = line.split()
-        sentences.append(words)
-    return sentences
-
 def train(model, train_loader, optimizer, device, loss_function):
     model.train()
     total_loss = 0
     for input_seq, target_seq in train_loader:
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
-        # [batch_size, sequence_length, vocab_size]
-        outputs = model(input_seq, target_seq) 
+        outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
         # decode_output(model,outputs)
-        # Reshape to [batch_size * sequence_length, vocab_size]
-        outputs = outputs.view(-1, outputs.size(-1))
-        target_seq = target_seq.view(-1)             
-
+        outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
+        target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
         loss = loss_function(outputs, target_seq)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
     return total_loss / len(train_loader)
-
 
 def evaluate(model, loader, device,loss_function):
     model.eval()
@@ -121,7 +103,7 @@ def evaluate(model, loader, device,loss_function):
             total_loss += loss.item()
     return total_loss / len(loader)
 
-def model_initializer(sentences,device):
+def model_initializer(device):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
     model = StoryTransformer(tokenizer=tokenizer, device=device)
@@ -135,20 +117,16 @@ def main():
     with open("temp_train.txt", 'r') as fp:
         lines = len(fp.readlines())
     num_loops = (lines//(BATCH_SIZE*CHUNK_SIZE))+1
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    sentences_train = get_sentences("temp_train.txt")
-    sentences_target = get_sentences("temp_train_target.txt")
-    sentences = sentences_train + sentences_target
-    model, tokenizer, optimizer, loss_fn = model_initializer(sentences,device)
+    model, tokenizer, optimizer, loss_fn = model_initializer(device)
     for i in range(num_loops):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
         train_loader = get_data_loader(train_data, tokenizer, model, True)
         print(f"Training on chunk {i}")
         for epoch in range(NUM_EPOCHS):
             train_loss = train(model, train_loader, optimizer, device,loss_fn)
-            # CHANGE THIS TO VALIDATION_LOADER
-            eval_loss = evaluate(model, train_loader, device, loss_fn)
+            eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
             print(f"Epoch {epoch+1} train loss: {train_loss}")
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
