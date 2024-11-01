@@ -71,8 +71,7 @@ def decode_output(model, outputs):
         decoded_sentences.append(decoded_sentence)
 
     for i, sentence in enumerate(decoded_sentences):
-        print(f"Decoded Sentence {i+1}: ", sentence)
-        print("\n")
+        print(f"Decoded Sentence {i+1}: \n", sentence)
 
 def train(model, train_loader, optimizer, device, loss_function):
     model.train()
@@ -108,15 +107,15 @@ def model_initializer(device):
     tokenizer.pad_token = tokenizer.eos_token
     model = StoryTransformer(tokenizer=tokenizer, device=device)
     model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=model.word_to_index['<pad>'])
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) # as per the paper
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=model.word_to_index['<pad>']) # CHANGE THIS TO ACCOUNT FOR LOSSES FROM BERT AND CORENLP
     return model, tokenizer, optimizer, loss_fn
 
 def main():
     # CHANGE FILE NAMES
     with open("temp_train.txt", 'r') as fp:
         lines = len(fp.readlines())
-    num_loops = (lines//(BATCH_SIZE*CHUNK_SIZE))+1
+    num_loops = (lines // (BATCH_SIZE*CHUNK_SIZE)) + 1
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
@@ -130,7 +129,7 @@ def main():
             print(f"Epoch {epoch+1} train loss: {train_loss}")
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
-    torch.save(model.state_dict(), "model.pth")
+    torch.save(model.state_dict(), "transformer_2.pth")
 
 if __name__ == "__main__":
     main()
