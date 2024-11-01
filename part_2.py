@@ -6,11 +6,6 @@ from torch.utils.data import Dataset, DataLoader
 from story_transformer import StoryTransformer
 from params import BATCH_SIZE, NUM_EPOCHS,CHUNK_SIZE, MAX_LEN, LEARNING_RATE
 
-# SHOULD WE USE DROPOUT AND A SCHEDULER TO REDUCE OVERFITTING?
-# SHOULD WE BE USING THE GPT2 TOKENIZER? bECAUSE IT'S FOR SUMMARIZATION TASKS SPECIFICALLY.
-# Consider using a learning rate scheduler
-# Add gradient clipping to prevent exploding gradients
-
 def preprocess(text):
     if text is None:
         return ""
