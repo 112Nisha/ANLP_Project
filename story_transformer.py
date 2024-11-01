@@ -20,7 +20,7 @@ def get_embedding_with_positional_encoding(embedding, context_size, device):
     return embedding.to(device) + positional_encoding
 
 class StoryTransformer(nn.Module):
-    def __init__(self, tokenizer, device, embedding_dimension=EMBEDDING_DIM,num_attention_heads=NUM_HEADS, num_decoders=NUM_DECODERS, feed_forward_dim=FF_DIM, dropout_rate=DROPOUT_RATE):
+    def __init__(self, tokenizer, device, embedding_dimension=EMBEDDING_DIM, num_attention_heads=NUM_HEADS, num_decoders=NUM_DECODERS, feed_forward_dim=FF_DIM, dropout_rate=DROPOUT_RATE):
         super(StoryTransformer, self).__init__()
         self.device = device
         self.embedding_dimension = embedding_dimension
@@ -36,9 +36,9 @@ class StoryTransformer(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_dimension)
         self.tokenizer.vocab = self.word_to_index
         self.positional_encoding = get_embedding_with_positional_encoding
-        decoder_block = nn.TransformerDecoderLayer(embedding_dimension, num_attention_heads, feed_forward_dim, dropout_rate, batch_first=True, device=device)
+        decoder_block = nn.TransformerDecoderLayer(d_model=embedding_dimension, nhead=num_attention_heads, dim_feedforward=feed_forward_dim, dropout=dropout_rate, batch_first=True, device=device)
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_block, num_layers=num_decoders)
-        self.hidden_layer = nn.Linear(embedding_dimension, vocab_size)
+        self.hidden_layer = nn.Linear(embedding_dimension, vocab_size) # hidden layer dim = embedding dim
         self.dropout = nn.Dropout(dropout_rate)
     
     def forward(self, input_seq, target):
