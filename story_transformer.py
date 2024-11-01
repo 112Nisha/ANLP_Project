@@ -20,28 +20,25 @@ def get_embedding_with_positional_encoding(embedding, context_size, device):
     return embedding.to(device) + positional_encoding
 
 class StoryTransformer(nn.Module):
-    def __init__(self, embedding_matrix, device, embedding_dimension=EMBEDDING_DIM,num_attention_heads=NUM_HEADS, num_decoders=NUM_DECODERS, feed_forward_dim=FF_DIM, dropout_rate=DROPOUT_RATE):
+    def __init__(self, tokenizer, device, embedding_dimension=EMBEDDING_DIM,num_attention_heads=NUM_HEADS, num_decoders=NUM_DECODERS, feed_forward_dim=FF_DIM, dropout_rate=DROPOUT_RATE):
         super(StoryTransformer, self).__init__()
         self.device = device
-        
-        word_vectors = torch.tensor(embedding_matrix.vectors)
-        num_word_vectors = word_vectors.size(0)
-
-        new_embedding_matrix = torch.zeros((num_word_vectors + 2, embedding_dimension))
-        new_embedding_matrix[:num_word_vectors] = word_vectors
-        new_embedding_matrix[-2] = torch.zeros(embedding_dimension)
-        new_embedding_matrix[-1] = torch.zeros(embedding_dimension)
-        self.embedding = nn.Embedding.from_pretrained(new_embedding_matrix, freeze=False)
         self.embedding_dimension = embedding_dimension
+        self.tokenizer = tokenizer
 
-        self.word_to_index = {word: idx for idx, word in enumerate(embedding_matrix.key_to_index)}
-        self.word_to_index['<unk>'] = num_word_vectors
-        self.word_to_index['<pad>'] = num_word_vectors + 1
-        self.index_to_word = list(embedding_matrix.index_to_key) + ['<unk>','<pad>']
+        self.word_to_index = tokenizer.get_vocab()
+        vocab_size = len(self.word_to_index)
+        self.word_to_index['<unk>'] = vocab_size
+        self.word_to_index['<pad>'] = vocab_size + 1
+        vocab_size = len(self.word_to_index)
+        self.index_to_word = {idx: word for word, idx in self.word_to_index.items()}
+        
+        self.embedding = nn.Embedding(vocab_size, embedding_dimension)
+        self.tokenizer.vocab = self.word_to_index
         self.positional_encoding = get_embedding_with_positional_encoding
         decoder_block = nn.TransformerDecoderLayer(embedding_dimension, num_attention_heads, feed_forward_dim, dropout_rate, batch_first=True, device=device)
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_block, num_layers=num_decoders)
-        self.hidden_layer = nn.Linear(embedding_dimension, num_word_vectors+2)
+        self.hidden_layer = nn.Linear(embedding_dimension, vocab_size)
         self.dropout = nn.Dropout(dropout_rate)
     
     def forward(self, input_seq, target):

@@ -1,13 +1,10 @@
 import re
 import torch
-from functools import partial
-from gensim.models import Word2Vec
 from transformers import GPT2Tokenizer
 from utils import get_nth_line_from_file
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
 from story_transformer import StoryTransformer
-from params import BATCH_SIZE, NUM_EPOCHS,CHUNK_SIZE, MAX_LEN, EMBEDDING_DIM, LEARNING_RATE
+from params import BATCH_SIZE, NUM_EPOCHS,CHUNK_SIZE, MAX_LEN, LEARNING_RATE
 
 # SHOULD WE USE DROPOUT AND A SCHEDULER TO REDUCE OVERFITTING?
 # SHOULD WE BE USING THE GPT2 TOKENIZER? bECAUSE IT'S FOR SUMMARIZATION TASKS SPECIFICALLY.
@@ -53,40 +50,32 @@ class TextDataset(Dataset):
         if self.isTrain:
             input_sequence += story
 
-        input_sequence_indices = [self.word2index.get(word, self.word2index['<unk>']) for word in input_sequence.split()]
-        story_indices = [self.word2index.get(word, self.word2index['<unk>']) for word in story.split()] if story else []
+        
+        input_sequence_indices = self.tokenizer.encode(input_sequence, truncation=True, padding='max_length', max_length=MAX_LEN, return_tensors='pt').squeeze()
+        if story:
+            story_indices = self.tokenizer.encode(story, truncation=True, padding='max_length', max_length=MAX_LEN, return_tensors='pt').squeeze()
+        else:
+            pad_index = self.word2index['<pad>']
+            story_indices = torch.full((MAX_LEN,), pad_index, dtype=torch.long)
         return input_sequence_indices, story_indices
-
-def collate_fn(batch,vocab):
-    input_seqs, target_seqs = zip(*batch)
-    pad_index = vocab['<pad>']
-
-    input_seqs_padded = [seq[:MAX_LEN] if len(seq) > MAX_LEN else seq + [pad_index] * (MAX_LEN - len(seq)) for seq in input_seqs]
-    target_seqs_padded = [seq[:MAX_LEN] if len(seq) > MAX_LEN else seq + [pad_index] * (MAX_LEN - len(seq)) for seq in target_seqs]
-    
-    input_seqs_padded = torch.tensor(input_seqs_padded)
-    target_seqs_padded = torch.tensor(target_seqs_padded)
-    
-    return input_seqs_padded, target_seqs_padded
 
 
 def get_data_loader(tokenized_data, tokenizer, model, train=True):
     dataset = TextDataset(tokenized_data, tokenizer, model.word_to_index, model.index_to_word, train)
-    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=partial(collate_fn,vocab = model.word_to_index))
+    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-
-def decode_output(model,outputs):
+def decode_output(model, outputs):
     output_indices = torch.argmax(outputs, dim=-1) 
 
     decoded_sentences = []
     for sequence in output_indices:
-        decoded_words = [model.index_to_word[idx.item()] for idx in sequence]
-        decoded_sentence = ' '.join(decoded_words)
+        decoded_sentence = model.tokenizer.decode(sequence, skip_special_tokens=True)
         decoded_sentences.append(decoded_sentence)
 
     for i, sentence in enumerate(decoded_sentences):
         print(f"Decoded Sentence {i+1}: ", sentence)
         print("\n")
+
 
 def get_sentences(filename):
     with open(filename, 'r') as file:
@@ -135,8 +124,7 @@ def evaluate(model, loader, device,loss_function):
 def model_initializer(sentences,device):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
-    word2vec_model = Word2Vec(sentences, min_count=1,vector_size=EMBEDDING_DIM)
-    model = StoryTransformer(embedding_matrix=word2vec_model.wv, device=device)
+    model = StoryTransformer(tokenizer=tokenizer, device=device)
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=model.word_to_index['<pad>'])
@@ -153,7 +141,6 @@ def main():
     sentences_target = get_sentences("temp_train_target.txt")
     sentences = sentences_train + sentences_target
     model, tokenizer, optimizer, loss_fn = model_initializer(sentences,device)
-    
     for i in range(num_loops):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
         train_loader = get_data_loader(train_data, tokenizer, model, True)
