@@ -84,7 +84,7 @@ def train(model, train_loader, optimizer, device, loss_function):
         total_loss += loss.item()
     return total_loss / len(train_loader)
 
-def evaluate(model, loader, device,loss_function):
+def evaluate(model, loader, device, loss_function):
     model.eval()
     total_loss = 0
     with torch.no_grad():
