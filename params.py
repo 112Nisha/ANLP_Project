@@ -13,3 +13,7 @@ NUM_DECODERS = 1
 NUM_EPOCHS = 5
 BATCH_SIZE = 2 # change it to 8
 CHUNK_SIZE = 3 # change it to 1000
+
+DISCOURSE_MARKERS = [
+    'and', 'but', 'because', 'when', 'if', 'so', 'before', 'though', 'unknown'
+]

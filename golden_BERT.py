@@ -1,6 +1,7 @@
 import torch
 import pandas as pd
 from torch import nn
+from params import DISCOURSE_MARKERS
 from sklearn.metrics import accuracy_score
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertForSequenceClassification, BertTokenizer
@@ -10,10 +11,6 @@ MAX_LENGTH = 128
 BATCH_SIZE = 128
 EPOCHS = 3
 LEARNING_RATE = 0.001
-
-DISCOURSE_MARKERS = [
-    'and', 'but', 'because', 'when', 'if', 'so', 'before', 'though', 'unknown'
-]
 
 class DiscourseDataset(Dataset):
     def __init__(self, file_path, tokenizer, max_length=MAX_LENGTH):
