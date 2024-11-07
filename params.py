@@ -6,6 +6,7 @@ LEARNING_RATE = 0.0005
 DROPOUT_RATE = 0.3
 MAX_LEN = 500
 FF_DIM = 3072 # feed forward dim = 4*embedding dim <= apparently same was used in gpt2-117m
+NUM_CONNECTORS = 9 # number of discourse relation classes
 
 # The following are the parameters that are used arbitrarity
 NUM_DECODERS = 1
