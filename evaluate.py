@@ -1,10 +1,9 @@
-import re
 import torch
-# from torch.nn.functional import softmax
+from params import THRESHOLD
+from transformers import BertTokenizer
+# from part_2 import dataloader_helper
 from stanfordnlp.server import CoreNLPClient
 from discourse_aware_story_gen import predict_discourse_marker
-from params import THRESHOLD
-# from transformers import BertTokenizer, BertForSequenceClassification
 
 BATCH_SIZE = 8
 
@@ -60,49 +59,9 @@ def average_coreference_chain_length(coreference_chains):
             average_length = 0
     return average_length
 
-# fine tune
-# def fine_tune_bert():
-#     model_name = 'bert-base-cased'
-#     tokenizer = BertTokenizer.from_pretrained(model_name)
-#     model = BertForSequenceClassification.from_pretrained(model_name, num_labels=9)
-
-#     return model, tokenizer
-
-# def tag_sentence_pairs(predicted_output, target_output, model, tokenizer, threshold=0.1):
-#     tagged_pairs = []
-#     for pred, targ in zip(predicted_output, target_output):
-#         inputs = tokenizer(pred, targ, return_tensors="pt", truncation=True, padding=True)
-#         with torch.no_grad():
-#             outputs = model(**inputs)
-#             probabilities = torch.nn.functional.softmax(outputs.logits, dim=1)
-#             confidence, predicted_label = torch.max(probabilities, dim=1)
-#             if confidence >= threshold:
-#                 label = predicted_label.item()
-#             else:
-#                 # 8 is for unknown
-#                 label = 8  
-
-#             tagged_pairs.append({
-#                 "predicted": pred,
-#                 "target": targ,
-#                 "label": label,
-#                 "confidence": confidence.item()
-#             })
-#     return tagged_pairs
-
-# 8 is for unknown
-# def compute_unknown_percentage(tagged_pairs):
-#     unknown_count = sum(1 for pair in tagged_pairs if pair['label'] == 8)  
-#     total_count = len(tagged_pairs)
-
-#     if total_count == 0:
-#         return 0
-
-#     percentage = (unknown_count / total_count) * 100
-#     return percentage
-
 def coherence_score(generated_text):
-    golden_bert, golden_bert_tokenizer, _, _ = load_golden_BERT(device)    
+    golden_bert = torch.load("bert_model.pth")
+    golden_bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     generated_text = generated_text.split(".")
     num_unknown = 0
     total = len(generated_text)
@@ -113,46 +72,7 @@ def coherence_score(generated_text):
             num_unknown += 1
     return num_unknown / total
 
-def get_nth_line_from_file(filename,line_number):
-    curr_index = 0
-    with open(filename, 'r') as file:
-        for line in file:
-            if curr_index == line_number:
-                return line.strip()
-            curr_index += 1
-    return None
-
-def preprocess(text):
-    cleaned_text = text.replace("<newline>", "")
-    output = re.sub(r'([.,!?;:*()"\'“”‘’_\u2014-])', r' \1 ', cleaned_text)
-    output = re.sub(r'[^\w\s]', '', output)
-    output = re.sub(r'\s+', ' ', output)
-    output = output.strip()
-    output = output.lower()
-    return output
-
-def dataloader_helper(source_filename, target_filename,start_index):
-    datalist = []
-    for curr_index in range(BATCH_SIZE):
-        prompt = get_nth_line_from_file(source_filename,start_index+curr_index)
-        story = get_nth_line_from_file(target_filename,start_index+curr_index)
-        # CHANGE THIS LATER
-        outline = prompt
-        prompt = preprocess(prompt)
-        story = preprocess(story)
-        outline = preprocess(outline)
-        input_dict = {'prompt':prompt,'outline':outline,'story':story}
-        datalist.append(input_dict)
-    return datalist
-
 def main():
-    input = ["today was a nice day", "i liked it"]
-    output = ["today was a nice day","i liked it"]
-    model, tokenizer = fine_tune_bert()
-    tagged_pairs = tag_sentence_pairs(output,input,model,tokenizer,threshold=0.2)
-    print(tagged_pairs)
-    val = compute_unknown_percentage(tagged_pairs)
-    print(val)
     pass
 
 if __name__ == "__main__":
