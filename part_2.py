@@ -9,17 +9,6 @@ from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
 from golden_BERT import model_initializer as model_initializer_bert
 
 def get_nth_line_from_file(file, n):
-    """
-    Get the nth line from the file.
-    
-    :param file_path: str, Path to the file.
-    :param n: int, Line number to retrieve (1-based index).
-    :return: str, The nth line from the file or None if line doesn't exist.
-    """
-    # for current_line_number, line in enumerate(file, start=0):
-    #     if current_line_number == n:
-    #         return line.strip()
-    # return None
     with open(file, 'r') as file:
         for current_line_number, line in enumerate(file, start=0):
             if current_line_number == n:
@@ -39,19 +28,6 @@ def get_average_loss(generated_text, model, golden_bert, golden_bert_tokenizer):
     if len(loss_arr) == 0:
         return -1
     return sum(loss_arr) / len(loss_arr)
-
-# Leaving this in just in case
-# def preprocess(text):
-#     if text is None:
-#         return ""
-#     cleaned_text = text.replace("<newline>", "")
-#     output = re.sub(r'([.,!?;:*()"\'“”‘’_\u2014-])', r' \1 ', cleaned_text)
-#     output = re.sub(r'[^\w\s.]', '', output)
-#     output = re.sub(r'\s+', ' ', output)
-#     output = re.sub(r'\s+', ' ', cleaned_text)
-#     output = output.strip()
-#     output = output.lower()
-#     return output
 
 def preprocess(text):
     if text is None:
@@ -188,30 +164,29 @@ def main():
     # CHANGE FILE NAMES
     with open("temp_train.txt", 'r') as fp:
         lines = len(fp.readlines())
-    num_loops = (lines // (BATCH_SIZE*CHUNK_SIZE)) + 1
+    num_loops = (lines // (BATCH_SIZE * CHUNK_SIZE)) + 1
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    tokenizer_bert = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     encoder = BertModel.from_pretrained('bert-base-uncased')
 
-    # following line needs to be replaced once the model is trained
-    # load the bert model from a file
-    golden_bert, golden_bert_tokenizer, _, _ = model_initializer_bert(device)
+    golden_bert, _ , _, _ = model_initializer_bert(device)
+    # golden_bert = torch.load("bert_model.pth")
 
-    discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer_bert, device=device)
+    discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer, device=device)
     for i in range(num_loops):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
         train_loader = get_data_loader(train_data, tokenizer, model, True)
         print(f"Training on chunk {i+1}")
         for epoch in range(NUM_EPOCHS):
-            train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, golden_bert_tokenizer, discourse_model)
+            train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, tokenizer, discourse_model)
             eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
             print(f"Epoch {epoch+1} train loss: {train_loss}")
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
-    # torch.save(model.state_dict(), "transformer_2.pth")
+    torch.save(model.state_dict(), "transformer_2.pth")
 
     # text = '''
     # i do nt the to cut off his head but i do nt really have a face . i close my eyes and just
