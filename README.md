@@ -23,5 +23,6 @@
 
 ## Doubts:
 - 1st transformer - joining the prompt and outline (or smth like this)
-- Loss with the words or probability distro?
+- Loss with the exact connectives or probability distro?
 - What do we do for 1 sentence (no punctuation)? Do we return 0 bert loss?
+- threshold for labelling a label as unknown?

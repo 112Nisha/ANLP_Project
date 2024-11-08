@@ -1,8 +1,10 @@
 import re
 import torch
-from torch.nn.functional import softmax
+# from torch.nn.functional import softmax
 from stanfordnlp.server import CoreNLPClient
-from transformers import BertTokenizer, BertForSequenceClassification
+from discourse_aware_story_gen import predict_discourse_marker
+from params import THRESHOLD
+# from transformers import BertTokenizer, BertForSequenceClassification
 
 BATCH_SIZE = 8
 
@@ -59,45 +61,57 @@ def average_coreference_chain_length(coreference_chains):
     return average_length
 
 # fine tune
-def fine_tune_bert():
-    model_name = 'bert-base-cased'
-    tokenizer = BertTokenizer.from_pretrained(model_name)
-    model = BertForSequenceClassification.from_pretrained(model_name, num_labels=9)
+# def fine_tune_bert():
+#     model_name = 'bert-base-cased'
+#     tokenizer = BertTokenizer.from_pretrained(model_name)
+#     model = BertForSequenceClassification.from_pretrained(model_name, num_labels=9)
 
-    return model, tokenizer
+#     return model, tokenizer
 
-def tag_sentence_pairs(predicted_output, target_output, model, tokenizer, threshold=0.1):
-    tagged_pairs = []
-    for pred, targ in zip(predicted_output, target_output):
-        inputs = tokenizer(pred, targ, return_tensors="pt", truncation=True, padding=True)
-        with torch.no_grad():
-            outputs = model(**inputs)
-            probabilities = torch.nn.functional.softmax(outputs.logits, dim=1)
-            confidence, predicted_label = torch.max(probabilities, dim=1)
-            if confidence >= threshold:
-                label = predicted_label.item()
-            else:
-                # 8 is for unknown
-                label = 8  
+# def tag_sentence_pairs(predicted_output, target_output, model, tokenizer, threshold=0.1):
+#     tagged_pairs = []
+#     for pred, targ in zip(predicted_output, target_output):
+#         inputs = tokenizer(pred, targ, return_tensors="pt", truncation=True, padding=True)
+#         with torch.no_grad():
+#             outputs = model(**inputs)
+#             probabilities = torch.nn.functional.softmax(outputs.logits, dim=1)
+#             confidence, predicted_label = torch.max(probabilities, dim=1)
+#             if confidence >= threshold:
+#                 label = predicted_label.item()
+#             else:
+#                 # 8 is for unknown
+#                 label = 8  
 
-            tagged_pairs.append({
-                "predicted": pred,
-                "target": targ,
-                "label": label,
-                "confidence": confidence.item()
-            })
-    return tagged_pairs
+#             tagged_pairs.append({
+#                 "predicted": pred,
+#                 "target": targ,
+#                 "label": label,
+#                 "confidence": confidence.item()
+#             })
+#     return tagged_pairs
 
 # 8 is for unknown
-def compute_unknown_percentage(tagged_pairs):
-    unknown_count = sum(1 for pair in tagged_pairs if pair['label'] == 8)  
-    total_count = len(tagged_pairs)
+# def compute_unknown_percentage(tagged_pairs):
+#     unknown_count = sum(1 for pair in tagged_pairs if pair['label'] == 8)  
+#     total_count = len(tagged_pairs)
 
-    if total_count == 0:
-        return 0
+#     if total_count == 0:
+#         return 0
 
-    percentage = (unknown_count / total_count) * 100
-    return percentage
+#     percentage = (unknown_count / total_count) * 100
+#     return percentage
+
+def coherence_score(generated_text):
+    golden_bert, golden_bert_tokenizer, _, _ = load_golden_BERT(device)    
+    generated_text = generated_text.split(".")
+    num_unknown = 0
+    total = len(generated_text)
+
+    for i in range(total-1):
+        _, confidence = predict_discourse_marker(golden_bert, golden_bert_tokenizer, generated_text[i], generated_text[i+1], golden_bert.device)
+        if confidence < THRESHOLD:
+            num_unknown += 1
+    return num_unknown / total
 
 def get_nth_line_from_file(filename,line_number):
     curr_index = 0
