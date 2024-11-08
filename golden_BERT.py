@@ -95,6 +95,7 @@ def train_model(model, train_loader, optimizer, device):
     return total_loss / len(train_loader)
         
 def predict_discourse_marker(model, tokenizer, sentence1, sentence2, device):
+   # print(f"Model type: {type(model)}")
     """
     Predicts the discourse marker between two input sentences
     """
