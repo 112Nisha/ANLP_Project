@@ -1,12 +1,11 @@
 import re
 import torch
-from transformers import GPT2Tokenizer, BertTokenizer, BertModel
-# from utils import get_nth_line_from_file
-from torch.utils.data import Dataset, DataLoader
 from story_transformer import StoryTransformer
-from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
-from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
+from torch.utils.data import Dataset, DataLoader
+from transformers import GPT2Tokenizer, BertTokenizer, BertModel
 from golden_BERT import model_initializer as model_initializer_bert
+from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
+from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
 
 def get_nth_line_from_file(file, n):
     with open(file, 'r') as file:
@@ -119,7 +118,7 @@ def train(model, train_loader, optimizer, device, loss_function, golden_bert, go
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
         outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
-        bert_loss = get_bert_loss(model,outputs, golden_bert, golden_bert_tokenizer, discourse_model)
+        bert_loss = get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model)
         print(f"BERT Loss: {bert_loss}")
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
         target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
@@ -172,7 +171,7 @@ def main():
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     encoder = BertModel.from_pretrained('bert-base-uncased')
 
-    golden_bert, _ , _, _ = model_initializer_bert(device)
+    golden_bert, _ , _, _ = model_initializer_bert(device) # CHANGE THIS 
     # golden_bert = torch.load("bert_model.pth")
 
     discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer, device=device)
@@ -187,35 +186,7 @@ def main():
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
     torch.save(model.state_dict(), "transformer_2.pth")
-
-    # text = '''
-    # i do nt the to cut off his head but i do nt really have a face . i close my eyes and just
-    # my for it to be over . my to a turn as i feel the to this . like being so there you ve the this
-    #     before . the j an s out no on of this like she is going to but . she has and of and a blue 
-    # so patterned with been . i see how was she is and i feel not . i m not the bad no . do i have 
-    # to from you and you how they to here to our home and no but what our an they are me to the to
-    # to the but me open and is it like in . i think her a was whit a . she is holding a that . 
-    # she n the a and i am my by how calm she seems . i decide to back off but she my that as 
-    # a to to you . the that is me in the face to my m off . before i can out i am be again . 
-    # then a be time . the the as me me me out the window . we are this me this of . how could
-    # you my her do that i like the feeling of being weight you . in of the glass what me to 
-    # with moon to . i feel like i m a in space something by a . then i an the ground and i 
-    # think i feel a it break . i you to make sure . it eyes be and ... it what . i this in 
-    # a and of this which for and my fall at least and . through the at t on of and i look up 
-    # and the it window . what a is what to at out of it the of . he s do . she only before into 
-    # back into the house . you my to get up . they are getting away . if they get away they will tell 
-    # you . more people will come . not just the to but . for fuck s a get up i know i have some time 
-    # so i take a moment to m my me . i do nt like out this to people . it s to now that i m this to it . 
-    # it s not my be they keep coming here . it s not my not he me this them . i m not the bad what . from 
-    # the other side of the house i hear the front to open me by the my of feet against it . keep it a 
-    # meind he . i need you to keep it my a s is her but my . though she my
-    # '''
-    # tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    # encoder = BertModel.from_pretrained('bert-base-uncased')
-    # golden_bert, golden_bert_tokenizer, _, _ = model_initializer_bert(device)
-    # discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer, device=device)
-    # loss_val = get_sentence_pairs(text,discourse_model, golden_bert, golden_bert_tokenizer)
-    # print(f"Loss Val From BERT: {loss_val}")
+    torch.save(discourse_model.state_dict(), "discourse_model.pth")
 
 if __name__ == "__main__":
     main()
