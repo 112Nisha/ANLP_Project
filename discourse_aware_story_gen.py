@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from params import DISCOURSE_MARKERS
 from golden_BERT import predict_discourse_marker
-from params import NUM_CONNECTORS, EMBEDDING_DIM, DISCOURSE_MARKERS
-from transformers import BertTokenizer
 
 class DiscourseAwareStoryGenerator(nn.Module):
     def __init__(self, encoder, hidden_size, output_size,tokenizer, device):
