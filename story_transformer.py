@@ -45,18 +45,20 @@ class StoryTransformer(nn.Module):
         self.hidden_layer = nn.Linear(embedding_dimension, vocab_size) # hidden layer dim = embedding dim
         self.dropout = nn.Dropout(dropout_rate)
     
-    def forward(self, input_seq, target):
+    def forward(self, input_seq, target=None):
         input_seq = self.embedding(input_seq)
         input_seq = self.dropout(input_seq)
-        input_seq = self.positional_encoding(input_seq, self.embedding_dimension, self.device)
+        input_seq = self.positional_encoding(input_seq, input_seq.size(1), self.device)
 
-        target = self.embedding(target)
-        target = self.dropout(target)
-        target = self.positional_encoding(target, self.embedding_dimension, self.device)
+        if target is not None:
+            target = self.embedding(target)
+            target = self.dropout(target)
+            target = self.positional_encoding(target, target.size(1), self.device)
+            target_mask = causal_masking(target.size(1)).to(self.device)
+            output = self.decoder(target, input_seq, tgt_mask=target_mask)
+        else:
+            output = self.generate_text(input_seq)
 
-        target_mask = causal_masking(target.size(1)).to(self.device)
-
-        output = self.decoder(target, input_seq, tgt_mask=target_mask)
         output = self.dropout(output)
         output = self.hidden_layer(output)
         return output
