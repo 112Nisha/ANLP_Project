@@ -186,7 +186,7 @@ def main():
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
     torch.save(model.state_dict(), "transformer_2.pth")
-    torch.save(discourse_model.state_dict(), "discourse_model.pth")
+    # torch.save(discourse_model.state_dict(), "discourse_model.pth")
 
 if __name__ == "__main__":
     main()
