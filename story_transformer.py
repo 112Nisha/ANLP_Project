@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-# from utils import causal_masking
 from params import NUM_DECODERS, NUM_HEADS, EMBEDDING_DIM, FF_DIM, DROPOUT_RATE
 
 def causal_masking(size):
