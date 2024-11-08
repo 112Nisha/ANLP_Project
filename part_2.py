@@ -121,7 +121,6 @@ def train(model, train_loader, optimizer, device, loss_function, golden_bert, go
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
         outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
-        # decode_output(model,outputs)
         bert_loss = get_bert_loss(model,outputs, golden_bert, golden_bert_tokenizer, discourse_model)
         print(f"BERT Loss: {bert_loss}")
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
@@ -207,5 +206,6 @@ def main():
     # discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer, device=device)
     # loss_val = get_sentence_pairs(text,discourse_model, golden_bert, golden_bert_tokenizer)
     # print(f"Loss Val From BERT: {loss_val}")
+
 if __name__ == "__main__":
     main()
