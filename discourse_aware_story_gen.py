@@ -45,6 +45,8 @@ def train_step(model, sentences, golden_bert, golden_bert_tokenizer):
     true_marker_index = torch.tensor([DISCOURSE_MARKERS.index(marker)], dtype=torch.long).to(model.device)
 
     loss = criterion(prob, true_marker_index)
+    # # print the loss in green color
+    # print(f"\033[92m{type(loss)}\033[00m")
     loss.backward()
     optimizer.step()
     

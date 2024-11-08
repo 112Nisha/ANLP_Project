@@ -4,11 +4,11 @@ from transformers import GPT2Tokenizer, BertTokenizer, BertModel
 from utils import get_nth_line_from_file
 from torch.utils.data import Dataset, DataLoader
 from story_transformer import StoryTransformer
-from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS
+from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
 from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
 from golden_BERT import model_initializer as model_initializer_bert
 
-def get_sentence_pairs(generated_text, model, golden_bert, golden_bert_tokenizer):
+def get_average_loss(generated_text, model, golden_bert, golden_bert_tokenizer):
     sentences = re.split(r'(?<=[.!?]) +', generated_text.strip())
     sentence_pairs = []
     for i in range(0, len(sentences)-1):
@@ -20,7 +20,7 @@ def get_sentence_pairs(generated_text, model, golden_bert, golden_bert_tokenizer
         loss_arr.append(loss_val)
     if len(loss_arr) == 0:
         return -1
-    return sum(loss_arr)/len(loss_arr)
+    return sum(loss_arr) / len(loss_arr)
 
 # Leaving this in just in case
 # def preprocess(text):
@@ -102,17 +102,20 @@ def decode_output(model, outputs):
 def get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model):
     output_indices = torch.argmax(outputs, dim=-1) 
 
-    decoded_sentences = []
+    decoded_stories = []
     for sequence in output_indices:
-        decoded_sentence = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
-        decoded_sentences.append(decoded_sentence)
+        decoded_story = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
+        decoded_stories.append(decoded_story)
 
     loss_array = []
-    for _, sentence in enumerate(decoded_sentences):
-        loss_val = get_sentence_pairs(sentence, discourse_model, golden_bert, golden_bert_tokenizer)
+    for _, story in enumerate(decoded_stories):
+        loss_val = get_average_loss(story, discourse_model, golden_bert, golden_bert_tokenizer)
+        print(f"\033[92m{type(loss_val), loss_val}\033[00m")
         if loss_val != -1:
             loss_array.append(loss_val)
-    return sum(loss_array)/len(loss_array)
+    if len(loss_array) == 0:
+        return -1
+    return sum(loss_array) / len(loss_array)
     
 def train(model, train_loader, optimizer, device, loss_function, golden_bert, golden_bert_tokenizer, discourse_model):
     model.train()
@@ -125,8 +128,16 @@ def train(model, train_loader, optimizer, device, loss_function, golden_bert, go
         print(f"BERT Loss: {bert_loss}")
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
         target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
+
         loss = loss_function(outputs, target_seq)
-        loss.backward()
+        bert_loss = get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model)
+        if bert_loss != -1:
+            loss.backward(retain_graph=True)  # Retain the graph for subsequent backward passes
+            scaled_bert_loss = LAMBDA1 * bert_loss
+            scaled_bert_loss.backward()
+        else:
+            loss.backward()
+
         optimizer.step()
         total_loss += loss.item() # add BERT loss
     return total_loss / len(train_loader)
@@ -162,9 +173,14 @@ def main():
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
+
     tokenizer_bert = BertTokenizer.from_pretrained('bert-base-uncased')
     encoder = BertModel.from_pretrained('bert-base-uncased')
+
+    # following line needs to be replaced once the model is trained
+    # load the bert model from a file
     golden_bert, golden_bert_tokenizer, _, _ = model_initializer_bert(device)
+
     discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer_bert, device=device)
     for i in range(num_loops):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
