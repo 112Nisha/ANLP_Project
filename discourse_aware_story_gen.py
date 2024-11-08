@@ -35,7 +35,7 @@ class DiscourseAwareStoryGenerator(nn.Module):
         prob = F.softmax(logits, dim=-1)  # Apply softmax to get classification probabilities
         return prob
 
-def train_step(model, tokenizer, sentences, golden_bert, golden_bert_tokenizer):
+def train_step(model, sentences, golden_bert, golden_bert_tokenizer):
     optimizer = torch.optim.Adam(model.parameters())
     criterion = nn.CrossEntropyLoss()
     optimizer.zero_grad()

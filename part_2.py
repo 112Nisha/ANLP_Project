@@ -8,7 +8,7 @@ from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTOR
 from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
 from golden_BERT import model_initializer as model_initializer_bert
 
-def get_sentence_pairs(generated_text, model,tokenizer, golden_bert, golden_bert_tokenizer):
+def get_sentence_pairs(generated_text, model, golden_bert, golden_bert_tokenizer):
     sentences = re.split(r'(?<=[.!?]) +', generated_text.strip())
     sentence_pairs = []
     for i in range(0, len(sentences)-1):
@@ -16,12 +16,11 @@ def get_sentence_pairs(generated_text, model,tokenizer, golden_bert, golden_bert
         sentence_pairs.append(pair)
     loss_arr = []
     for i, pair in enumerate(sentence_pairs):
-        loss_val = train_step(model=model,tokenizer=tokenizer,sentences=pair, golden_bert=golden_bert, golden_bert_tokenizer=golden_bert_tokenizer)
+        loss_val = train_step(model=model, sentences=pair, golden_bert=golden_bert, golden_bert_tokenizer=golden_bert_tokenizer)
         loss_arr.append(loss_val)
     if len(loss_arr) == 0:
         return -1
     return sum(loss_arr)/len(loss_arr)
-
 
 # Leaving this in just in case
 # def preprocess(text):
@@ -45,8 +44,6 @@ def preprocess(text):
     # output = output.strip().lower()
     # return output
     return cleaned_text
-
-    
 
 def dataloader_helper(source_filename, target_filename, start_index):
     datalist = []
@@ -92,17 +89,17 @@ def get_data_loader(tokenized_data, tokenizer, model, train=True):
 
 def decode_output(model, outputs):
     output_indices = torch.argmax(outputs, dim=-1) 
-
     decoded_sentences = []
+
     for sequence in output_indices:
         decoded_sentence = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
         decoded_sentences.append(decoded_sentence)
-# For each chunk, it will print the decoded sentences per batch so if chunk_size = 6 and batch_size = 2
-# there will be 3 such runs of this loop
+    # For each chunk, it will print the decoded sentences per batch so if chunk_size = 6 and batch_size = 2
+    # there will be 3 such runs of this loop
     for i, sentence in enumerate(decoded_sentences):
         print(f"Decoded Sentence {i+1}: \n", sentence)
 
-def get_bert_loss(model, outputs, tokenizer, encoder,golden_bert,golden_bert_tokenizer,discourse_model):
+def get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model):
     output_indices = torch.argmax(outputs, dim=-1) 
 
     decoded_sentences = []
@@ -111,14 +108,13 @@ def get_bert_loss(model, outputs, tokenizer, encoder,golden_bert,golden_bert_tok
         decoded_sentences.append(decoded_sentence)
 
     loss_array = []
-    device = model.device
     for _, sentence in enumerate(decoded_sentences):
-        loss_val = get_sentence_pairs(sentence, discourse_model,tokenizer, golden_bert, golden_bert_tokenizer)
+        loss_val = get_sentence_pairs(sentence, discourse_model, golden_bert, golden_bert_tokenizer)
         if loss_val != -1:
             loss_array.append(loss_val)
     return sum(loss_array)/len(loss_array)
     
-def train(model, train_loader, optimizer, device, loss_function, tokenizer, encoder,golden_bert,golden_bert_tokenizer,discourse_model):
+def train(model, train_loader, optimizer, device, loss_function, golden_bert, golden_bert_tokenizer, discourse_model):
     model.train()
     total_loss = 0
     for input_seq, target_seq in train_loader:
@@ -126,7 +122,7 @@ def train(model, train_loader, optimizer, device, loss_function, tokenizer, enco
         optimizer.zero_grad()
         outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
         # decode_output(model,outputs)
-        bert_loss = get_bert_loss(model,outputs,tokenizer, encoder,golden_bert,golden_bert_tokenizer,discourse_model)
+        bert_loss = get_bert_loss(model,outputs, golden_bert, golden_bert_tokenizer, discourse_model)
         print(f"BERT Loss: {bert_loss}")
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
         target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
@@ -142,13 +138,9 @@ def evaluate(model, loader, device, loss_function):
     total_loss = 0
     with torch.no_grad():
         for input_seq, target_seq in loader:
-            # input seq = target seq = [batch_size, seq_len]
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
             outputs = model(input_seq, target_seq)
-            # decode_output(model,outputs)  
-            # outputs = [batch_size, seq_len, vocab_size]
             outputs = outputs.view(-1, outputs.size(-1)) 
-            # outputs = [batch_size * seq_len, vocab_size] 
             target_seq = target_seq.view(-1)              
             loss = loss_function(outputs, target_seq)
             total_loss += loss.item()
@@ -180,7 +172,7 @@ def main():
         train_loader = get_data_loader(train_data, tokenizer, model, True)
         print(f"Training on chunk {i+1}")
         for epoch in range(NUM_EPOCHS):
-            train_loss = train(model, train_loader, optimizer, device,loss_fn,tokenizer_bert, encoder,golden_bert,golden_bert_tokenizer,discourse_model)
+            train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, golden_bert_tokenizer, discourse_model)
             eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
             print(f"Epoch {epoch+1} train loss: {train_loss}")
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
@@ -213,7 +205,7 @@ def main():
     # encoder = BertModel.from_pretrained('bert-base-uncased')
     # golden_bert, golden_bert_tokenizer, _, _ = model_initializer_bert(device)
     # discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer, device=device)
-    # loss_val = get_sentence_pairs(text,discourse_model,tokenizer, golden_bert, golden_bert_tokenizer)
+    # loss_val = get_sentence_pairs(text,discourse_model, golden_bert, golden_bert_tokenizer)
     # print(f"Loss Val From BERT: {loss_val}")
 if __name__ == "__main__":
     main()
