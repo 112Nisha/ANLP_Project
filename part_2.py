@@ -1,12 +1,30 @@
 import re
 import torch
 from transformers import GPT2Tokenizer, BertTokenizer, BertModel
-from utils import get_nth_line_from_file
+# from utils import get_nth_line_from_file
 from torch.utils.data import Dataset, DataLoader
 from story_transformer import StoryTransformer
 from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
 from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
 from golden_BERT import model_initializer as model_initializer_bert
+
+def get_nth_line_from_file(file, n):
+    """
+    Get the nth line from the file.
+    
+    :param file_path: str, Path to the file.
+    :param n: int, Line number to retrieve (1-based index).
+    :return: str, The nth line from the file or None if line doesn't exist.
+    """
+    # for current_line_number, line in enumerate(file, start=0):
+    #     if current_line_number == n:
+    #         return line.strip()
+    # return None
+    with open(file, 'r') as file:
+        for current_line_number, line in enumerate(file, start=0):
+            if current_line_number == n:
+                return line.strip()
+    return None
 
 def get_average_loss(generated_text, model, golden_bert, golden_bert_tokenizer):
     sentences = re.split(r'(?<=[.!?]) +', generated_text.strip())
@@ -49,6 +67,7 @@ def dataloader_helper(source_filename, target_filename, start_index):
     datalist = []
     for curr_index in range(CHUNK_SIZE * BATCH_SIZE):
         prompt, story = get_nth_line_from_file(source_filename, start_index + curr_index), get_nth_line_from_file(target_filename, start_index + curr_index)
+        # print(prompt)
         outline = prompt # CHANGE THIS LATER
         if not prompt: 
             continue
@@ -110,7 +129,7 @@ def get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_
     loss_array = []
     for _, story in enumerate(decoded_stories):
         loss_val = get_average_loss(story, discourse_model, golden_bert, golden_bert_tokenizer)
-        print(f"\033[92m{type(loss_val), loss_val}\033[00m")
+        # print(f"\033[92m{type(loss_val), loss_val}\033[00m")
         if loss_val != -1:
             loss_array.append(loss_val)
     if len(loss_array) == 0:

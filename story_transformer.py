@@ -1,8 +1,13 @@
 import math
 import torch
 import torch.nn as nn
-from utils import causal_masking
+# from utils import causal_masking
 from params import NUM_DECODERS, NUM_HEADS, EMBEDDING_DIM, FF_DIM, DROPOUT_RATE
+
+def causal_masking(size):
+    mask = torch.triu(torch.ones(size, size), diagonal=1).type(torch.bool)
+    mask = torch.full_like(mask, float('-inf')).masked_fill(mask == 0, float(0.0))
+    return mask
 
 def get_embedding_with_positional_encoding(embedding, context_size, device):
     batch_size, sequence_length, embedding_dim = embedding.size()
