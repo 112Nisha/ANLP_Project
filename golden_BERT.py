@@ -1,7 +1,6 @@
 import torch
 import pandas as pd
 from torch import nn
-from params import DISCOURSE_MARKERS
 from sklearn.metrics import accuracy_score
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertForSequenceClassification, BertTokenizer
@@ -11,6 +10,10 @@ MAX_LENGTH = 128
 BATCH_SIZE = 128
 EPOCHS = 3
 LEARNING_RATE = 0.001
+
+DISCOURSE_MARKERS = [
+    'and', 'but', 'because', 'when', 'if', 'so', 'before', 'though'
+]
 
 class DiscourseDataset(Dataset):
     def __init__(self, file_path, tokenizer, max_length=MAX_LENGTH):
@@ -125,9 +128,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    train_dataset = DiscourseDataset('./Books_8/test.tsv', tokenizer) # Change to train.tsv
-    val_dataset = DiscourseDataset('./Books_8/test.tsv', tokenizer) # Change to val.tsv
-    test_dataset = DiscourseDataset('./Books_8/test.tsv', tokenizer)
+    train_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to train.tsv
+    val_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to val.tsv
+    test_dataset = DiscourseDataset('test.tsv', tokenizer)
     
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
