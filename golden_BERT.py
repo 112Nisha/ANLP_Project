@@ -7,8 +7,8 @@ from transformers import BertForSequenceClassification, BertTokenizer
 
 # Constants
 MAX_LENGTH = 128
-BATCH_SIZE = 128
-EPOCHS = 3
+BATCH_SIZE = 1024
+EPOCHS = 5
 LEARNING_RATE = 0.001
 
 DISCOURSE_MARKERS = [
@@ -129,31 +129,32 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    train_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to train.tsv
-    val_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to val.tsv
-    test_dataset = DiscourseDataset('test.tsv', tokenizer)
+    train_dataset = DiscourseDataset('/kaggle/input/small-test-tsv/temp.tsvc', tokenizer) # Change to train.tsv
+    # val_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to val.tsv
+    # test_dataset = DiscourseDataset('test.tsv', tokenizer)
     
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+    # val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
+    # test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
     for epoch in range(EPOCHS):
         print(f'Epoch {epoch + 1}')
         train_loss = train_model(model, train_loader, optimizer, device)
         print(f'Train Loss: {train_loss}')
-        val_loss, val_accuracy = evaluate(model, val_loader, device)
-        print(f'Val Loss: {val_loss}')
-        print(f'Val Accuracy: {val_accuracy}')
-
-    test_loss, test_accuracy = evaluate(model, test_loader, device)
-    print(f'Test Loss: {test_loss}')
-    print(f'Test Accuracy: {test_accuracy}')
+        # val_loss, val_accuracy = evaluate(model, val_loader, device)
+        # print(f'Val Loss: {val_loss}')
+        # print(f'Val Accuracy: {val_accuracy}')
+        torch.save(model.state_dict(), "/kaggle/working/golden_bert.pth")
+    # torch.save(model.state_dict(), "/kaggle/working/golden_bert.pth")
+    # test_loss, test_accuracy = evaluate(model, test_loader, device)
+    # print(f'Test Loss: {test_loss}')
+    # print(f'Test Accuracy: {test_accuracy}')
     
     # Example of using the prediction function
-    sent1 = "Her eyes flew up to his face."
-    sent2 = "Suddenly she realized why he looked so different."
-    marker, confidence = predict_discourse_marker(model, tokenizer, sent1, sent2, device)
-    print(f"Predicted discourse marker: {marker} (confidence: {confidence:.2f})")
+    # sent1 = "Her eyes flew up to his face."
+    # sent2 = "Suddenly she realized why he looked so different."
+    # marker, confidence = predict_discourse_marker(model, tokenizer, sent1, sent2, device)
+    # print(f"Predicted discourse marker: {marker} (confidence: {confidence:.2f})")
 
 if __name__ == '__main__':
     main()
