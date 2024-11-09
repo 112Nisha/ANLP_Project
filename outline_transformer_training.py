@@ -12,6 +12,8 @@ from tqdm import tqdm
 import sys
 
 from transformers import GPT2Tokenizer
+from transformers import logging
+logging.set_verbosity_error()
 
 from get_outline import generate_outline
 from outline_transformer import OutlineTransformer
@@ -35,10 +37,13 @@ num_decoders = 4
 feed_forward_dim = 400
 dropout_rate = 0.1
 learning_rate = 0.001
-batch_size = 16
+batch_size = 2
 num_epochs = 1
 
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+tokenizer.add_special_tokens({'pad_token': '<pad>'})
+tokenizer.bos_token = '<start>'
+tokenizer.eos_token = '<end>'
 
 # window = 10
 
@@ -59,6 +64,8 @@ tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 
 # embedding_matrix = word_vectors.wv
 # print(len(embedding_matrix))
+
+# sys.exit()
 
 # Read the training, validation and testing prompts and generate their correspondign outlines
 training_prompts = read_text("archive/writingPrompts/train.wp_source")
@@ -84,7 +91,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 model = OutlineTransformer(embedding_dimension, tokenizer, num_attention_heads, num_decoders, feed_forward_dim, dropout_rate, device)
 if torch.cuda.is_available():
     model = model.to(device)
-loss_function = nn.CrossEntropyLoss()
+loss_function = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 for epoch in range(num_epochs):
@@ -97,7 +104,7 @@ for epoch in range(num_epochs):
                 inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
-            targets = tokenizer(targets)
+            targets = model.tokenize_to_indices(targets).reshape(-1)
             loss = loss_function(outputs, targets)
             loss.backward()
             batch_loss = loss.item() * len(targets)
@@ -121,7 +128,7 @@ for epoch in range(num_epochs):
                 if torch.cuda.is_available():
                     inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
-                targets = tokenizer(targets)
+                targets = model.tokenize_to_indices(targets).reshape(-1)
                 loss = loss_function(outputs, targets)
                 batch_loss = loss.item() * len(targets)
                 batch_words = len(targets)
@@ -143,7 +150,7 @@ with torch.no_grad():
             if torch.cuda.is_available():
                 inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
-            targets = tokenizer(targets)
+            targets = model.tokenize_to_indices(targets).reshape(-1)
             loss = loss_function(outputs, targets)
             batch_loss = loss.item() * len(targets)
             batch_words = len(targets)
@@ -155,3 +162,5 @@ with torch.no_grad():
             avg_loss = total_loss / total_words
 perplexity = np.exp(avg_loss)
 print(f'Testing Loss: {avg_loss} Testing Perplexity: {perplexity}')
+
+torch.save(model, "outline_transformer.pt")

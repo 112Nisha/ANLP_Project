@@ -1,6 +1,6 @@
 from rake_nltk import Rake
 from summa import summarizer
-from utils import get_nth_line
+# from utils import get_nth_line
 
 def generate_abstract(text, ratio=0.3):
     """
@@ -33,7 +33,7 @@ def generate_outline(text, summary_ratio=0.3):
     """
     abstract = generate_abstract(text, ratio=summary_ratio)
     keywords = extract_keywords(text)
-    print("\nKeywords: ", keywords)
+    # print("\nKeywords: ", keywords)
     # # Create an outline
     # outline = {
     #     "Abstract (Story Plot)": abstract,
@@ -44,20 +44,21 @@ def generate_outline(text, summary_ratio=0.3):
     # }
     
     outline = [abstract] + keywords[:10]
+    outline = " ".join(entry for entry in outline)
     
     return outline
 
-file_path = "archive/writingPrompts/train.wp_target"
-n = 1
+# file_path = "archive/writingPrompts/train.wp_target"
+# n = 1
 
-prompt = get_nth_line("archive/writingPrompts/train.wp_source", n)
-print("Prompt: ", prompt)
+# prompt = get_nth_line("archive/writingPrompts/train.wp_source", n)
+# print("Prompt: ", prompt)
 
-text = get_nth_line(file_path, n)
-print("Story: ", text)
+# text = get_nth_line(file_path, n)
+# print("Story: ", text)
 
-if text:
-    story_outline = generate_outline(text, summary_ratio=0.3)
-    print("Story Outline: ", story_outline)
-else:
-    print(f"Line {n} doesn't exist in the file.")
+# if text:
+#     story_outline = generate_outline(text, summary_ratio=0.3)
+#     print("Story Outline: ", story_outline)
+# else:
+#     print(f"Line {n} doesn't exist in the file.")

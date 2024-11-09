@@ -64,15 +64,15 @@ def get_nth_line_from_file(file, n):
 def read_text(prompt_file_path):
     with open(prompt_file_path, 'r', encoding='utf-8') as file:
         raw_text = file.readlines()
-        raw_text = [line.strip().lower() for line in raw_text]
+        raw_text = [line.strip().lower() for line in raw_text[:10]]
         return raw_text
 
 def create_datasets(prompts, outlines):
     inputs = []
     targets = []
     for prompt, outline in zip(prompts, outlines):
-        inputs.append('<start>' + prompt + '<sep>' + outline)
-        targets.append(prompt + '<sep>' + outline + '<end>')
+        inputs.append('<start> ' + prompt + ' <sep> ' + outline)
+        targets.append(prompt + ' <sep> ' + outline + ' <end>')
     return inputs, targets
 
 class TextDataset(Dataset):
@@ -119,6 +119,6 @@ def collate_fn(batch):
     inputs, targets = zip(*batch)
     max_input_len = max(len(input) for input in inputs)
     max_target_len = max(len(target) for target in targets)
-    inputs = [input + (max_input_len - len(input)) * '<pad>' for input in inputs]
-    targets = [targets + (max_target_len - len(target)) * '<pad>' for target in targets]
+    inputs = [input + (max_input_len - len(input)) * ' <pad> ' for input in inputs]
+    targets = [target + (max_target_len - len(target)) * ' <pad> ' for target in targets]
     return inputs, targets
