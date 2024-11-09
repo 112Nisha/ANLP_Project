@@ -129,7 +129,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    train_dataset = DiscourseDataset('/kaggle/input/small-test-tsv/temp.tsvc', tokenizer) # Change to train.tsv
+    train_dataset = DiscourseDataset('/kaggle/input/small-test-tsv/temp.tsv', tokenizer) # Change to train.tsv
     # val_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to val.tsv
     # test_dataset = DiscourseDataset('test.tsv', tokenizer)
     
