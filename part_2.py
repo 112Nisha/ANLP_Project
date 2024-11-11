@@ -38,9 +38,10 @@ def preprocess(text):
     # return output
     return cleaned_text
 
-def dataloader_helper(source_filename, target_filename, start_index):
+def dataloader_helper(source_filename, target_filename, start_index,num_lines):
     datalist = []
-    for curr_index in range(CHUNK_SIZE * BATCH_SIZE):
+    # for curr_index in range(CHUNK_SIZE * BATCH_SIZE):
+    for curr_index in range(num_lines):
         prompt, story = get_nth_line_from_file(source_filename, start_index + curr_index), get_nth_line_from_file(target_filename, start_index + curr_index)
         # print(prompt)
         outline = prompt # CHANGE THIS LATER
@@ -142,6 +143,7 @@ def evaluate(model, loader, device, loss_function):
         for input_seq, target_seq in loader:
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
             outputs = model(input_seq, target_seq)
+           # decode_output(model,outputs)
             outputs = outputs.view(-1, outputs.size(-1)) 
             target_seq = target_seq.view(-1)              
             loss = loss_function(outputs, target_seq)
@@ -161,7 +163,6 @@ def main():
     # CHANGE FILE NAMES
     with open("temp_train.txt", 'r') as fp:
         lines = len(fp.readlines())
-    num_loops = (lines // (BATCH_SIZE * CHUNK_SIZE)) + 1
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
@@ -173,15 +174,15 @@ def main():
     # golden_bert = torch.load("bert_model.pth")
 
     discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS, tokenizer=bert_tokenizer, device=device)
-    for i in range(num_loops):
-        train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
-        train_loader = get_data_loader(train_data, tokenizer, model, True) # should this be a gpt2 tokenizer?
-        print(f"Training on chunk {i+1}")
-        for epoch in range(NUM_EPOCHS):
-            train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, bert_tokenizer, discourse_model)
-            eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
-            print(f"Epoch {epoch+1} train loss: {train_loss}")
-            print(f"Epoch {epoch+1} eval loss: {eval_loss}")
+
+    train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", 0,lines)
+    # train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
+    train_loader = get_data_loader(train_data, tokenizer, model, True) # should this be a gpt2 tokenizer?
+    for epoch in range(NUM_EPOCHS):
+        train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, bert_tokenizer, discourse_model)
+        eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
+        print(f"Epoch {epoch+1} train loss: {train_loss}")
+        print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
     torch.save(model.state_dict(), "transformer_2.pth")
     # torch.save(discourse_model.state_dict(), "discourse_model.pth")

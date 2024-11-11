@@ -23,9 +23,9 @@ def preprocess(text):
     # return output
     return cleaned_text
 
-def dataloader_helper(source_filename, target_filename, start_index):
+def dataloader_helper(source_filename, target_filename, start_index, num_lines):
     datalist = []
-    for curr_index in range(CHUNK_SIZE * BATCH_SIZE):
+    for curr_index in range(num_lines):
         prompt, story = get_nth_line_from_file(source_filename, start_index + curr_index), get_nth_line_from_file(target_filename, start_index + curr_index)
         if not prompt:
             continue
@@ -48,7 +48,7 @@ class TextDataset(Dataset):
 
     def __getitem__(self, idx):
         prompt, outline = self.data[idx]['prompt'], self.data[idx]['outline']
-
+        outline = ' '.join(outline).replace('\n', ' ')
         input_sequence = prompt + " <sep> "
         if self.isTrain:
             input_sequence += ''.join(outline)
@@ -68,7 +68,6 @@ def get_data_loader(tokenized_data, tokenizer, model, train=True):
 def decode_output(model, outputs):
     output_indices = torch.argmax(outputs, dim=-1) 
     decoded_sentences = []
-
     for sequence in output_indices:
         decoded_sentence = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
         decoded_sentences.append(decoded_sentence)
@@ -99,6 +98,7 @@ def evaluate(model, loader, device, loss_function):
         for input_seq, target_seq in loader:
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
             outputs = model(input_seq, target_seq)
+            # decode_output(model,outputs)
             outputs = outputs.view(-1, outputs.size(-1)) 
             target_seq = target_seq.view(-1)              
             loss = loss_function(outputs, target_seq)
@@ -123,15 +123,13 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    for i in range(num_loops):
-        train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
-        train_loader = get_data_loader(train_data, tokenizer, model, True)
-        print(f"Training on chunk {i+1}")
-        for epoch in range(NUM_EPOCHS):
-            train_loss = train(model, train_loader, optimizer, device, loss_fn)
-            eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
-            print(f"Epoch {epoch+1} train loss: {train_loss}")
-            print(f"Epoch {epoch+1} eval loss: {eval_loss}")
+    train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", 0, lines)
+    train_loader = get_data_loader(train_data, tokenizer, model, True)
+    for epoch in range(NUM_EPOCHS):
+        train_loss = train(model, train_loader, optimizer, device, loss_fn)
+        eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
+        print(f"Epoch {epoch+1} train loss: {train_loss}")
+        print(f"Epoch {epoch+1} eval loss: {eval_loss}")
 
     torch.save(model.state_dict(), "transformer_1.pth")
 
