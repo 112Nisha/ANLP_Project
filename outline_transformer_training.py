@@ -1,5 +1,5 @@
 import torch
-from Transformer import OutlineTransformer
+from Transformer import Transformer
 from torch.utils.data import Dataset, DataLoader
 from transformers import GPT2Tokenizer
 from get_outline import generate_outline
@@ -27,9 +27,8 @@ def dataloader_helper(source_filename, target_filename, start_index):
     datalist = []
     for curr_index in range(CHUNK_SIZE * BATCH_SIZE):
         prompt, story = get_nth_line_from_file(source_filename, start_index + curr_index), get_nth_line_from_file(target_filename, start_index + curr_index)
-        if not prompt: 
+        if not prompt:
             continue
-        prompt = prompt[6:]
         prompt, story = preprocess(prompt), preprocess(story)
         outline = generate_outline(story)
         input_dict = {'prompt': prompt, 'outline': outline}
@@ -109,7 +108,7 @@ def evaluate(model, loader, device, loss_function):
 def model_initializer(device):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
-    model = OutlineTransformer(tokenizer=tokenizer, device=device)
+    model = Transformer(tokenizer=tokenizer, device=device)
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) # as per the paper
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=model.word_to_index['<pad>'])
