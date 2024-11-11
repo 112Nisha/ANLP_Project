@@ -4,8 +4,13 @@ from story_transformer import StoryTransformer
 from torch.utils.data import Dataset, DataLoader
 from transformers import GPT2Tokenizer, BertTokenizer, BertModel
 from golden_BERT import model_initializer as model_initializer_bert
+import stanza
+from get_coreference_consistency import get_coreference_clusters
+stanza.download('en')
 from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
 from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
+
+tokenizer = GPT2Tokenizer
 
 def get_nth_line_from_file(file, n):
     with open(file, 'r') as file:
@@ -110,16 +115,64 @@ def get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_
     if len(loss_array) == 0:
         return -1
     return sum(loss_array) / len(loss_array)
+
+def get_strings(logits):
+    token_ids = torch.argmax(logits, dim=-1)  # Shape: [batch_size, sequence_length]
     
+    # Convert token IDs to words using the tokenizer
+    generated_strings = []
+    for tokens in token_ids:
+        words = tokenizer.convert_ids_to_tokens(tokens.tolist(), skip_special_tokens=True)
+        generated_strings.append(tokenizer.convert_tokens_to_string(words))
+    
+    return generated_strings
+
+def get_coreference_loss(attention_weights, coreference_clusters, input_sequence):
+    batch_size, num_heads, seq_len, _ = attention_weights.shape
+    attention_weights = attention_weights.mean(dim=1)  # Average over heads, shape: (batch_size, seq_len, seq_len)
+
+    coref_loss = 0
+    total_mentions = 0
+    
+    # Loop through each batch
+    for batch_idx in range(batch_size):
+        sentence_indices = input_sequence[batch_idx]  # Shape: (seq_len,)
+        sentence_tokens = [GPT2Tokenizer.decode([idx.item()]) for idx in sentence_indices]
+
+        for cluster in coreference_clusters[batch_idx]:
+            cluster_word = cluster["text"]
+            cluster_token_indices = [
+                idx for idx, token in enumerate(sentence_tokens) if token == cluster_word
+            ]
+            
+            # Ensure indices are from the correct dictionary
+            cluster_token_indices = torch.tensor(cluster_token_indices)
+            
+            # Calculate the attention sum for tokens in the cluster
+            for i in cluster_token_indices:
+                # Sum of log attention weights for tokens in the same cluster
+                attention_sum = attention_weights[batch_idx, i, cluster_token_indices].sum()
+                log_attention_sum = torch.log(attention_sum + 1e-8)
+                coref_loss -= log_attention_sum
+                total_mentions += 1
+    
+    # Normalize the coref loss
+    if total_mentions > 0:
+        coref_loss /= total_mentions
+    
+    return coref_loss
+ 
 def train(model, train_loader, optimizer, device, loss_function, golden_bert, golden_bert_tokenizer, discourse_model):
     model.train()
     total_loss = 0
     for input_seq, target_seq in train_loader:
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
-        outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
+        outputs, attention_weights = model(input_seq, target_seq, get_attention_weights=True)       # [batch_size, sequence_length, vocab_size]
         bert_loss = get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model)
         print(f"BERT Loss: {bert_loss}")
+        coreference_clusters = get_coreference_clusters(get_strings(outputs))
+        get_coreference_loss = get_coreference_loss(attention_weights, coreference_clusters, target_seq)
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
         target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
 

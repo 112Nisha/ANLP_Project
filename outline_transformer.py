@@ -24,15 +24,18 @@ class OutlineTransformer(nn.Module):
         target = torch.nn.utils.rnn.pad_sequence(target, batch_first=True, padding_value=self.tokenizer.pad_token_id)
         return target
     
-    def forward(self, prompt):
+    def forward(self, prompt, tokenized=False):
         # Determine mode of operation and convert input as necessary
         inference = False
         if isinstance(prompt, str):
             prompt = [prompt]
             inference = True
 
-        # Tokenize prompt
-        prompt_indices = self.tokenize_to_indices(prompt)
+        # Tokenize prompt if needed
+        if not tokenized:
+            prompt_indices = self.tokenize_to_indices(prompt)
+        else:
+            prompt_indices = prompt
         
         # Get attention mask
         attention_mask = (prompt_indices != self.tokenizer.pad_token_id)

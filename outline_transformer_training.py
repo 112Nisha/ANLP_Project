@@ -15,6 +15,8 @@ from transformers import GPT2Tokenizer
 from transformers import logging
 logging.set_verbosity_error()
 
+from params import EMBEDDING_DIM, NUM_HEADS, NUM_DECODERS, DROPOUT_RATE, LEARNING_RATE, BATCH_SIZE, NUM_EPOCHS
+
 from get_outline import generate_outline
 from outline_transformer import OutlineTransformer
 from utils import TextDataset, read_text, create_datasets, collate_fn
@@ -31,14 +33,14 @@ else:
     device = torch.device('cpu')
 
 # Define some constants
-embedding_dimension = 100
-num_attention_heads = 4
-num_decoders = 4
+embedding_dimension = EMBEDDING_DIM
+num_attention_heads = NUM_HEADS
+num_decoders = NUM_DECODERS
 feed_forward_dim = 400
-dropout_rate = 0.1
-learning_rate = 0.001
-batch_size = 2
-num_epochs = 1
+dropout_rate = DROPOUT_RATE
+learning_rate = LEARNING_RATE
+batch_size = BATCH_SIZE
+num_epochs = NUM_EPOCHS
 
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 tokenizer.add_special_tokens({'pad_token': '<pad>'})
