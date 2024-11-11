@@ -1,157 +1,140 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-# import pandas as pd
-from torch.utils.data import DataLoader
-# from gensim.models import Word2Vec
-import math
-from statistics import mean
-
-from tqdm import tqdm
-import sys
-
+from Transformer import OutlineTransformer
+from torch.utils.data import Dataset, DataLoader
 from transformers import GPT2Tokenizer
-
 from get_outline import generate_outline
-from outline_transformer import OutlineTransformer
-from utils import TextDataset, read_text, create_datasets, collate_fn
+from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_EPOCHS
 
-print(torch.__version__)
-print(torch.cuda.is_available())
+def get_nth_line_from_file(file, n):
+    with open(file, 'r') as file:
+        for current_line_number, line in enumerate(file, start=0):
+            if current_line_number == n:
+                return line.strip()
+    return None
 
-if torch.cuda.is_available():
-    print("GPU")
-    print(torch.cuda.get_device_name())
-    device = torch.device('cuda')
-else:
-    print("CPU")
-    device = torch.device('cpu')
+def preprocess(text):
+    if text is None:
+        return ""
+    # print the text in green
+    cleaned_text = text.replace("<newline>", "")
+    # output = re.sub(r'[^\w\s.]', '', cleaned_text)
+    # output = re.sub(r'\s+', ' ', output) 
+    # output = output.strip().lower()
+    # return output
+    return cleaned_text
 
-# Define some constants
-embedding_dimension = 100
-num_attention_heads = 4
-num_decoders = 4
-feed_forward_dim = 400
-dropout_rate = 0.1
-learning_rate = 0.001
-batch_size = 16
-num_epochs = 1
+def dataloader_helper(source_filename, target_filename, start_index):
+    datalist = []
+    for curr_index in range(CHUNK_SIZE * BATCH_SIZE):
+        prompt, story = get_nth_line_from_file(source_filename, start_index + curr_index), get_nth_line_from_file(target_filename, start_index + curr_index)
+        if not prompt: 
+            continue
+        prompt = prompt[6:]
+        prompt, story = preprocess(prompt), preprocess(story)
+        outline = generate_outline(story)
+        input_dict = {'prompt': prompt, 'outline': outline}
+        datalist.append(input_dict)
+    return datalist
 
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+class TextDataset(Dataset):
+    def __init__(self, data, tokenizer, word2index, index2word, train=False):
+        self.data = data
+        self.isTrain = train
+        self.tokenizer = tokenizer
+        self.word2index = word2index
+        self.index2word = index2word
 
-# window = 10
+    def __len__(self):
+        return len(self.data)
 
-# word_vectors = Word2Vec(vector_size=embedding_dimension, window=5, min_count=1, workers=4)
-# word_vectors.build_vocab(['<start>', '<end>'], update=False)
+    def __getitem__(self, idx):
+        prompt, outline = self.data[idx]['prompt'], self.data[idx]['outline']
 
-# for i in range(1):
-#     training_input_prompts, training_targets = load_text("archive/writingPrompts/train.wp_source", "archive/writingPrompts/train.wp_target", 0, window)
-#     val_input_prompts, val_targets = load_text("archive/writingPrompts/valid.wp_source", "archive/writingPrompts/valid.wp_target", 0, window)
-#     print("Max: ", max(len(sentence) for sentence in training_input_prompts), "Mean: ", mean(len(sentence) for sentence in training_input_prompts), "\n")
-#     print("Max: ", max(len(sentence) for sentence in training_targets), "Mean: ", mean(len(sentence) for sentence in training_targets), "\n")
-#     print("Max: ", max(len(sentence) for sentence in val_input_prompts), "Mean: ", mean(len(sentence) for sentence in val_input_prompts), "\n")
-#     print("Max: ", max(len(sentence) for sentence in val_targets), "Mean: ", mean(len(sentence) for sentence in val_targets), "\n")
+        input_sequence = prompt + " <sep> "
+        if self.isTrain:
+            input_sequence += ''.join(outline)
 
-#     print(training_input_prompts, "\n", training_targets)
-    
-#     word_vectors.build_vocab(training_input_prompts, update=True)
+        input_sequence_indices = self.tokenizer.encode(input_sequence, truncation=True, padding='max_length', max_length=MAX_LEN, return_tensors='pt').squeeze()
+        if outline:
+            outline_indices = self.tokenizer.encode(outline, truncation=True, padding='max_length', max_length=MAX_LEN, return_tensors='pt').squeeze()
+        else:
+            pad_index = self.word2index['<pad>']
+            outline_indices = torch.full((MAX_LEN,), pad_index, dtype=torch.long)
+        return input_sequence_indices, outline_indices
 
-# embedding_matrix = word_vectors.wv
-# print(len(embedding_matrix))
+def get_data_loader(tokenized_data, tokenizer, model, train=True):
+    dataset = TextDataset(tokenized_data, tokenizer, model.word_to_index, model.index_to_word, train)
+    return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-# Read the training, validation and testing prompts and generate their correspondign outlines
-training_prompts = read_text("archive/writingPrompts/train.wp_source")
-training_outlines = [generate_outline(prompt) for prompt in training_prompts]
-validation_prompts = read_text("archive/writingPrompts/train.wp_source")
-validation_outlines = [generate_outline(prompt) for prompt in validation_prompts]
-test_prompts = read_text("archive/writingPrompts/train.wp_source")
-test_outlines = [generate_outline(prompt) for prompt in test_prompts]
+def decode_output(model, outputs):
+    output_indices = torch.argmax(outputs, dim=-1) 
+    decoded_sentences = []
 
-# Create datasets
-training_inputs, training_targets = create_datasets(training_prompts, training_outlines)
-training_dataset = TextDataset(training_inputs, training_targets)
-validation_inputs, validation_targets = create_datasets(validation_prompts, validation_outlines)
-validation_dataset = TextDataset(validation_inputs, validation_targets)
-test_inputs, test_targets = create_datasets(test_prompts, test_outlines)
-test_dataset = TextDataset(test_inputs, test_targets)
+    for sequence in output_indices:
+        decoded_sentence = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
+        decoded_sentences.append(decoded_sentence)
+    # For each chunk, it will print the decoded sentences per batch so if chunk_size = 6 and batch_size = 2
+    # there will be 3 such runs of this loop
+    for i, sentence in enumerate(decoded_sentences):
+        print(f"Decoded Sentence {i+1}: \n", sentence)
 
-# Create dataloaders
-train_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
-
-model = OutlineTransformer(embedding_dimension, tokenizer, num_attention_heads, num_decoders, feed_forward_dim, dropout_rate, device)
-if torch.cuda.is_available():
-    model = model.to(device)
-loss_function = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-for epoch in range(num_epochs):
+def train(model, train_loader, optimizer, device, loss_function):
     model.train()
     total_loss = 0
-    total_words = 0
-    with tqdm(total=len(train_loader), desc=f'Epoch {epoch+1}', unit='batch') as pbar:
-        for inputs, targets in train_loader:
-            if torch.cuda.is_available():
-                inputs, targets = inputs.to(device), targets.to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            targets = tokenizer(targets)
-            loss = loss_function(outputs, targets)
-            loss.backward()
-            batch_loss = loss.item() * len(targets)
-            batch_words = len(targets)
-            batch_perplexity = np.exp(batch_loss / batch_words)
-            total_loss += batch_loss
-            total_words += batch_words
-            optimizer.step()
-            pbar.update(1)
-            pbar.set_postfix(loss=loss.item())
-    avg_loss = total_loss / total_words
-    perplexity = np.exp(avg_loss)
-    print(f'Epoch {epoch+1}, Training Loss: {avg_loss}, Training Perplexity: {perplexity}')
-    
+    for input_seq, target_seq in train_loader:
+        input_seq, target_seq = input_seq.to(device), target_seq.to(device)
+        optimizer.zero_grad()
+        outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
+        outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
+        target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
+        loss = loss_function(outputs, target_seq)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item() # add BERT loss
+    return total_loss / len(train_loader)
+
+def evaluate(model, loader, device, loss_function):
     model.eval()
     total_loss = 0
-    total_words = 0
     with torch.no_grad():
-        with tqdm(total=len(val_loader), desc=f'Epoch {epoch+1} Validation', unit='batch') as pbar:
-            for inputs, targets in val_loader:
-                if torch.cuda.is_available():
-                    inputs, targets = inputs.to(device), targets.to(device)
-                outputs = model(inputs)
-                targets = tokenizer(targets)
-                loss = loss_function(outputs, targets)
-                batch_loss = loss.item() * len(targets)
-                batch_words = len(targets)
-                batch_perplexity = np.exp(batch_loss / batch_words)
-                total_loss += batch_loss
-                total_words += batch_words
-                pbar.update(1)
-                pbar.set_postfix(loss=loss.item())
-                avg_loss = total_loss / total_words
-    perplexity = np.exp(avg_loss)
-    print(f'Epoch {epoch+1}, Validation Loss: {avg_loss} Validation Perplexity: {perplexity}')
+        for input_seq, target_seq in loader:
+            input_seq, target_seq = input_seq.to(device), target_seq.to(device)
+            outputs = model(input_seq, target_seq)
+            outputs = outputs.view(-1, outputs.size(-1)) 
+            target_seq = target_seq.view(-1)              
+            loss = loss_function(outputs, target_seq)
+            total_loss += loss.item()
+    return total_loss / len(loader)
 
-model.eval()
-total_loss = 0
-total_words = 0
-with torch.no_grad():
-    with tqdm(total=len(test_loader), desc='Testing', unit='batch') as pbar:
-        for inputs, targets in test_loader:
-            if torch.cuda.is_available():
-                inputs, targets = inputs.to(device), targets.to(device)
-            outputs = model(inputs)
-            targets = tokenizer(targets)
-            loss = loss_function(outputs, targets)
-            batch_loss = loss.item() * len(targets)
-            batch_words = len(targets)
-            batch_perplexity = np.exp(batch_loss / batch_words)
-            total_loss += batch_loss
-            total_words += batch_words
-            pbar.update(1)
-            pbar.set_postfix(loss=loss.item())
-            avg_loss = total_loss / total_words
-perplexity = np.exp(avg_loss)
-print(f'Testing Loss: {avg_loss} Testing Perplexity: {perplexity}')
+def model_initializer(device):
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    tokenizer.pad_token = tokenizer.eos_token
+    model = OutlineTransformer(tokenizer=tokenizer, device=device)
+    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) # as per the paper
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=model.word_to_index['<pad>'])
+    return model, tokenizer, optimizer, loss_fn
+
+def main():
+    # CHANGE FILE NAMES
+    with open("temp_train.txt", 'r') as fp:
+        lines = len(fp.readlines())
+    num_loops = (lines // (BATCH_SIZE * CHUNK_SIZE)) + 1
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, tokenizer, optimizer, loss_fn = model_initializer(device)
+
+    for i in range(num_loops):
+        train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
+        train_loader = get_data_loader(train_data, tokenizer, model, True)
+        print(f"Training on chunk {i+1}")
+        for epoch in range(NUM_EPOCHS):
+            train_loss = train(model, train_loader, optimizer, device, loss_fn)
+            eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
+            print(f"Epoch {epoch+1} train loss: {train_loss}")
+            print(f"Epoch {epoch+1} eval loss: {eval_loss}")
+
+    torch.save(model.state_dict(), "transformer_1.pth")
+
+if __name__ == "__main__":
+    main()

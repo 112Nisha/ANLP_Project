@@ -1,6 +1,6 @@
 import re
 import torch
-from story_transformer import StoryTransformer
+from Transformer import Transformer
 from torch.utils.data import Dataset, DataLoader
 from transformers import GPT2Tokenizer, BertTokenizer, BertModel
 from golden_BERT import model_initializer as model_initializer_bert
@@ -118,8 +118,6 @@ def train(model, train_loader, optimizer, device, loss_function, golden_bert, go
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
         outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
-        bert_loss = get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model)
-        print(f"BERT Loss: {bert_loss}")
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
         target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
 
@@ -153,7 +151,7 @@ def evaluate(model, loader, device, loss_function):
 def model_initializer(device):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token
-    model = StoryTransformer(tokenizer=tokenizer, device=device)
+    model = Transformer(tokenizer=tokenizer, device=device)
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE) # as per the paper
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=model.word_to_index['<pad>']) # CHANGE THIS TO ACCOUNT FOR LOSSES FROM BERT AND CORENLP
@@ -168,19 +166,19 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     encoder = BertModel.from_pretrained('bert-base-uncased')
 
     golden_bert, _ , _, _ = model_initializer_bert(device) # CHANGE THIS 
     # golden_bert = torch.load("bert_model.pth")
 
-    discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS,tokenizer=tokenizer, device=device)
+    discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS, tokenizer=bert_tokenizer, device=device)
     for i in range(num_loops):
         train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
-        train_loader = get_data_loader(train_data, tokenizer, model, True)
+        train_loader = get_data_loader(train_data, tokenizer, model, True) # should this be a gpt2 tokenizer?
         print(f"Training on chunk {i+1}")
         for epoch in range(NUM_EPOCHS):
-            train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, tokenizer, discourse_model)
+            train_loss = train(model, train_loader, optimizer, device, loss_fn, golden_bert, bert_tokenizer, discourse_model)
             eval_loss = evaluate(model, train_loader, device, loss_fn) # CHANGE THIS TO VALIDATION_LOADER
             print(f"Epoch {epoch+1} train loss: {train_loss}")
             print(f"Epoch {epoch+1} eval loss: {eval_loss}")
