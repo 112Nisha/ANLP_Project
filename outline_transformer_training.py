@@ -3,7 +3,7 @@ from Transformer import Transformer
 from torch.utils.data import Dataset, DataLoader
 from transformers import GPT2Tokenizer
 from get_outline import generate_outline
-from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_EPOCHS
+from params import BATCH_SIZE, MAX_LEN, LEARNING_RATE, NUM_EPOCHS
 
 def get_nth_line_from_file(file, n):
     with open(file, 'r') as file:
@@ -118,7 +118,7 @@ def main():
     # CHANGE FILE NAMES
     with open("temp_train.txt", 'r') as fp:
         lines = len(fp.readlines())
-    num_loops = (lines // (BATCH_SIZE * CHUNK_SIZE)) + 1
+    # num_loops = (lines // (BATCH_SIZE * CHUNK_SIZE)) + 1
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer, loss_fn = model_initializer(device)

@@ -1,11 +1,13 @@
 import re
 import torch
+import stanza
+from corenlp import coreference_loss
 from Transformer import Transformer
 from torch.utils.data import Dataset, DataLoader
 from transformers import GPT2Tokenizer, BertTokenizer, BertModel
 from golden_BERT import model_initializer as model_initializer_bert
 from discourse_aware_story_gen import train_step, DiscourseAwareStoryGenerator
-from params import BATCH_SIZE, CHUNK_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
+from params import BATCH_SIZE, MAX_LEN, LEARNING_RATE, NUM_CONNECTORS, EMBEDDING_DIM, NUM_EPOCHS, LAMBDA1, LAMBDA2
 
 def get_nth_line_from_file(file, n):
     with open(file, 'r') as file:
@@ -96,46 +98,59 @@ def decode_output(model, outputs):
 
 def get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model):
     output_indices = torch.argmax(outputs, dim=-1) 
-
     decoded_stories = []
     for sequence in output_indices:
         decoded_story = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
         decoded_stories.append(decoded_story)
-
     loss_array = []
     for _, story in enumerate(decoded_stories):
         loss_val = get_average_loss(story, discourse_model, golden_bert, golden_bert_tokenizer)
-        # print(f"\033[92m{type(loss_val), loss_val}\033[00m")
         if loss_val != -1:
             loss_array.append(loss_val)
     if len(loss_array) == 0:
         return -1
     return sum(loss_array) / len(loss_array)
     
+def get_corenlp_loss(model, outputs, batch_attention_weights_list):
+    output_indices = torch.argmax(outputs, dim=-1)
+    nlp = stanza.Pipeline('en', processors='tokenize,mwt,pos,lemma,depparse,coref')
+    decoded_stories = []
+    for sequence in output_indices:
+        decoded_story = model.tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
+        decoded_stories.append(decoded_story)
+    loss_array = []
+    for i, story in enumerate(decoded_stories):
+        attention_weights = batch_attention_weights_list[i]
+        loss_val = float(coreference_loss(attention_weights, story, nlp))  # Ensure float conversion
+        loss_array.append(loss_val)
+    return sum(loss_array) / len(loss_array) if loss_array else 0.0
+
 def train(model, train_loader, optimizer, device, loss_function, golden_bert, golden_bert_tokenizer, discourse_model):
     model.train()
     total_loss = 0
     for input_seq, target_seq in train_loader:
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
-        outputs, batch_attention_weights_list = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
-        outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
-        target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
+        
+        outputs, batch_attention_weights_list = model(input_seq, target_seq)
+        outputs_reshaped = outputs.view(-1, outputs.size(-1))
+        target_seq = target_seq.view(-1)
 
-        loss = loss_function(outputs, target_seq)
-        bert_loss = get_bert_loss(model, outputs, golden_bert, golden_bert_tokenizer, discourse_model)
+        generation_loss = loss_function(outputs_reshaped, target_seq)
+        bert_loss = get_bert_loss(model, outputs_reshaped, golden_bert, golden_bert_tokenizer, discourse_model)
+        corenlp_float_loss = get_corenlp_loss(model, outputs, batch_attention_weights_list)
+        corenlp_loss = torch.tensor(corenlp_float_loss, device=device, requires_grad=True)
+        total_loss_for_batch = generation_loss
         if bert_loss != -1:
-            loss.backward(retain_graph=True)  # Retain the graph for subsequent backward passes
-            scaled_bert_loss = LAMBDA1 * bert_loss
-            scaled_bert_loss.backward()
-        else:
-            loss.backward()
+            total_loss_for_batch += LAMBDA1 * bert_loss
+        total_loss_for_batch += LAMBDA2 * corenlp_loss
+        total_loss_for_batch.backward()
 
         optimizer.step()
-        total_loss += loss.item() # add BERT loss
+        total_loss += total_loss_for_batch.item()
+
     return total_loss / len(train_loader)
 
-# Do I add bert loss here too?
 def evaluate(model, loader, device, loss_function):
     model.eval()
     total_loss = 0
@@ -175,7 +190,7 @@ def main():
 
     discourse_model = DiscourseAwareStoryGenerator(encoder=encoder, hidden_size=EMBEDDING_DIM, output_size=NUM_CONNECTORS, tokenizer=bert_tokenizer, device=device)
 
-    train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", 0,lines)
+    train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", 0, lines)
     # train_data = dataloader_helper("temp_train.txt", "temp_train_target.txt", i * CHUNK_SIZE * BATCH_SIZE)
     train_loader = get_data_loader(train_data, tokenizer, model, True) # should this be a gpt2 tokenizer?
     for epoch in range(NUM_EPOCHS):

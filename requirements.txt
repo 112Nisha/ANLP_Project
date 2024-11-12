@@ -7,3 +7,4 @@ gensim.models
 torch
 rake_nltk
 summa
+stanza

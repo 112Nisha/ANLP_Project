@@ -23,8 +23,6 @@ def get_embedding_with_positional_encoding(embedding, context_size, device):
 
     return embedding.to(device) + positional_encoding
 
-
-
 class Transformer(nn.Module):
     def __init__(self, tokenizer, device, embedding_dimension=EMBEDDING_DIM, num_attention_heads=NUM_HEADS, num_decoders=NUM_DECODERS, feed_forward_dim=FF_DIM, dropout_rate=DROPOUT_RATE):
         super(Transformer, self).__init__()
@@ -48,13 +46,12 @@ class Transformer(nn.Module):
         self.decoder = nn.TransformerDecoder(decoder_layer=decoder_block, num_layers=num_decoders)
         self.hidden_layer = nn.Linear(embedding_dimension, vocab_size) # hidden layer dim = embedding dim
         self.dropout = nn.Dropout(dropout_rate)
-
     
     def forward(self, input_seq, target=None):
         input_seq = self.embedding(input_seq)
         input_seq = self.dropout(input_seq)
         input_seq = self.positional_encoding(input_seq, input_seq.size(1), self.device)
-        
+
         if target is not None:
             target = self.embedding(target)
             target = self.dropout(target)
@@ -66,9 +63,6 @@ class Transformer(nn.Module):
             attention_weights_tensor = torch.stack(attention_weights, dim=0)
             batch_attention_weights = attention_weights_tensor.split(1, dim=1)
             batch_attention_weights_list = [batch.squeeze(0).squeeze(0) for batch in batch_attention_weights]
-            
-           
-
 
         else:
             output = self.generate_text(input_seq)
@@ -81,12 +75,11 @@ class Transformer(nn.Module):
     def _decode_with_attention(self, input_seq, target, target_mask):
         attention_weights = []
         output = target
-        
+
         for layer in self.decoder.layers:
             mha = layer.self_attn
             output, attn_weights = mha(output, input_seq, input_seq, attn_mask=target_mask)
             attention_weights.append(attn_weights)
-            
-        output = output.reshape(-1, output.size(-1))  
-        
+
+        # output = output.reshape(-1, output.size(-1))  
         return output, attention_weights

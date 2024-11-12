@@ -1,12 +1,12 @@
-import stanza
 import torch
+import stanza 
 import logging
-logging.getLogger("stanza").setLevel(logging.ERROR) 
 import warnings
+logging.getLogger("stanza").setLevel(logging.ERROR) 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
 def get_coref_clusters(story, nlp):
+    print(story)
     doc = nlp(story)
     clusters = []
     for i, coref_chain in enumerate(doc.coref):
@@ -14,7 +14,7 @@ def get_coref_clusters(story, nlp):
             "cluster_id": i + 1,
             "mentions": []
         }
-        
+
         for mention in coref_chain.mentions:
             start_idx = mention.start_word
             end_idx = mention.end_word
@@ -27,12 +27,12 @@ def get_coref_clusters(story, nlp):
                 "start_index": start_idx,
                 "end_index": end_idx
             })
-        
+
         clusters.append(cluster_info)
     return clusters
 
 def coreference_loss(attention_weights, story, nlp):
-    coref_clusters = get_coref_clusters(story,nlp)
+    coref_clusters = get_coref_clusters(story, nlp)
     num_clusters = len(coref_clusters)
     total_mentions = sum(len(cluster["mentions"]) for cluster in coref_clusters)
     loss = 0
@@ -40,7 +40,7 @@ def coreference_loss(attention_weights, story, nlp):
     for cluster in coref_clusters:
         mentions = cluster["mentions"]
         num_mentions = len(mentions)
-        
+
         if num_mentions > 1:
             cluster_loss = 0
 
@@ -48,15 +48,15 @@ def coreference_loss(attention_weights, story, nlp):
                 for j in range(i + 1, num_mentions):
                     start_idx_1 = mentions[i]["start_index"]
                     start_idx_2 = mentions[j]["start_index"]
-                    
+
                     idx_1 = start_idx_1 % attention_weights.size(0)
                     idx_2 = start_idx_2 % attention_weights.size(1)
-                    
+
                     alpha_ik = attention_weights[idx_1, idx_2]
-                    
+
                     if alpha_ik > 0:
                         cluster_loss -= torch.log(alpha_ik)
-            
+
             # Scale by 1/N_i for this cluster
             cluster_loss /= num_mentions
             loss += cluster_loss
@@ -79,17 +79,6 @@ The elephant started crying in pain. He understood his mistake and apologised to
 and every one of the animals he had harassed.
 '''
 
-# story = '''
-# ejhvsck ewfbnouv qfbeybg swipqowj0. wobhsrvb deugh0 dufhg9s fuuwpsoidi swuihiufen
-# jegvbbh drgbuo. wjnerfu uuhtuogts ufo3uigbd aefnrfeu s2ufb  qiwefui. wbfewoyrb 2fnuob wuehrigp.
-# efhbi w2ourbotub wsbfob pobhnfwqob wpioirhpi ijbjdvoub epigh.
-# '''
-
-# story = '''
-# I am sad, today is Monday. I hate mondays. They are stressful.
-# '''
-
-attention_weights = torch.rand(10, 10)  
-
-loss = coreference_loss(attention_weights, story, nlp)
-print(f"Coreference Loss: {loss}")
+# attention_weights = torch.rand(10, 10)  
+# loss = coreference_loss(attention_weights, story, nlp)
+# print(f"Coreference Loss: {loss}")
