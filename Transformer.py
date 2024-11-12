@@ -61,22 +61,32 @@ class Transformer(nn.Module):
             target = self.positional_encoding(target, target.size(1), self.device)
             target_mask = causal_masking(target.size(1)).to(self.device)
             output = self.decoder(target, input_seq, tgt_mask=target_mask)
-            # output, attention_weights = self._decode_with_attention(input_seq, target, target_mask)
-        
+            _ , attention_weights = self._decode_with_attention(input_seq, target, target_mask)
+    
+            attention_weights_tensor = torch.stack(attention_weights, dim=0)
+            batch_attention_weights = attention_weights_tensor.split(1, dim=1)
+            batch_attention_weights_list = [batch.squeeze(0).squeeze(0) for batch in batch_attention_weights]
+            
+           
+
 
         else:
             output = self.generate_text(input_seq)
+            batch_attention_weights_list = []
 
         output = self.dropout(output)
         output = self.hidden_layer(output)
-        return output
+        return output, batch_attention_weights_list
 
-    # def _decode_with_attention(self, input_seq, target, target_mask):
-    #         attention_weights = []
+    def _decode_with_attention(self, input_seq, target, target_mask):
+        attention_weights = []
+        output = target
+        
+        for layer in self.decoder.layers:
+            mha = layer.self_attn
+            output, attn_weights = mha(output, input_seq, input_seq, attn_mask=target_mask)
+            attention_weights.append(attn_weights)
             
-    #         # Loop through each decoder layer to get the attention weights
-    #         for layer in self.decoder.layers:
-    #             output, attn_weights = layer(target, input_seq, tgt_mask=target_mask)
-    #             attention_weights.append(attn_weights)  # Collect the attention weights from each layer
-            
-    #         return output, attention_weights
+        output = output.reshape(-1, output.size(-1))  
+        
+        return output, attention_weights

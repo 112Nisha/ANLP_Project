@@ -6,7 +6,8 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
-def get_coref_clusters(doc):
+def get_coref_clusters(story, nlp):
+    doc = nlp(story)
     clusters = []
     for i, coref_chain in enumerate(doc.coref):
         cluster_info = {
@@ -30,7 +31,8 @@ def get_coref_clusters(doc):
         clusters.append(cluster_info)
     return clusters
 
-def coreference_loss(attention_weights, coref_clusters):
+def coreference_loss(attention_weights, story, nlp):
+    coref_clusters = get_coref_clusters(story,nlp)
     num_clusters = len(coref_clusters)
     total_mentions = sum(len(cluster["mentions"]) for cluster in coref_clusters)
     loss = 0
@@ -86,9 +88,8 @@ and every one of the animals he had harassed.
 # story = '''
 # I am sad, today is Monday. I hate mondays. They are stressful.
 # '''
-doc = nlp(story)
-coref_clusters = get_coref_clusters(doc)
+
 attention_weights = torch.rand(10, 10)  
 
-loss = coreference_loss(attention_weights, coref_clusters)
+loss = coreference_loss(attention_weights, story, nlp)
 print(f"Coreference Loss: {loss}")

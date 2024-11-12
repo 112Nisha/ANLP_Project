@@ -82,7 +82,7 @@ def train(model, train_loader, optimizer, device, loss_function):
     for input_seq, target_seq in train_loader:
         input_seq, target_seq = input_seq.to(device), target_seq.to(device)
         optimizer.zero_grad()
-        outputs = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
+        outputs, batch_attention_weights_list = model(input_seq, target_seq)       # [batch_size, sequence_length, vocab_size]
         outputs = outputs.view(-1, outputs.size(-1)) # Reshape to [batch_size * sequence_length, vocab_size]
         target_seq = target_seq.view(-1)             # Reshape to [batch_size * sequence_length]
         loss = loss_function(outputs, target_seq)
@@ -97,7 +97,7 @@ def evaluate(model, loader, device, loss_function):
     with torch.no_grad():
         for input_seq, target_seq in loader:
             input_seq, target_seq = input_seq.to(device), target_seq.to(device)
-            outputs = model(input_seq, target_seq)
+            outputs, batch_attention_weights_list = model(input_seq, target_seq)
             # decode_output(model,outputs)
             outputs = outputs.view(-1, outputs.size(-1)) 
             target_seq = target_seq.view(-1)              
