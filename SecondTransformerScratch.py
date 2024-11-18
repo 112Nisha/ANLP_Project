@@ -81,7 +81,7 @@ def decode_output(model, outputs):
 
 def decode_output_gpt2(tokenizer, outputs):
     output_indices = torch.argmax(outputs.logits, dim=-1)  # shape will be [batch_size, sequence_length]
-    print(type(output_indices))
+    # print(type(output_indices))
     decoded_sentences = []
     for sequence in output_indices:
         decoded_sentence = tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
@@ -188,7 +188,7 @@ def model_initializer(device):
 
 def main():    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
+    # print(device)
     
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
     nlp = stanza.Pipeline('en', processors='tokenize,mwt,pos,lemma,depparse,coref')

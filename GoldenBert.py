@@ -24,7 +24,7 @@ class DiscourseDataset(Dataset):
         df = pd.read_csv(file_path, sep='\t', names=['sentence1', 'sentence2', 'label'])
         self.sentence_pairs = list(zip(df['sentence1'], df['sentence2']))
         self.labels = [DISCOURSE_MARKERS.index(label) for label in df['label']]
-        print(df['label'])
+        # print(df['label'])
 
     def __len__(self):
         return len(self.sentence_pairs)
@@ -107,8 +107,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, tokenizer, optimizer, loss_fn = model_initializer(device)
 
-    train_dataset = DiscourseDataset('/kaggle/input/train-files/train_.tsv', tokenizer) # Change to train.tsv
-    val_dataset = DiscourseDataset('test.tsv', tokenizer) # Change to val.tsv
+    # replace the file names with the actual file names
+    train_dataset = DiscourseDataset('train_.tsv', tokenizer)
+    val_dataset = DiscourseDataset('test.tsv', tokenizer)
     test_dataset = DiscourseDataset('test.tsv', tokenizer)
     
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -122,17 +123,11 @@ def main():
         val_loss, val_accuracy = evaluate(model, val_loader, device)
         print(f'Val Loss: {val_loss}')
         print(f'Val Accuracy: {val_accuracy}')
-        torch.save(model.state_dict(), '/kaggle/working/golden_bert.pt')
+    torch.save(model.state_dict(), 'golden_bert.pt')
 
     test_loss, test_accuracy = evaluate(model, test_loader, device)
     print(f'Test Loss: {test_loss}')
     print(f'Test Accuracy: {test_accuracy}')
-    
-    # Example of using the prediction function
-    # sent1 = "Her eyes flew up to his face."
-    # sent2 = "Suddenly she realized why he looked so different."
-    # marker, confidence = predict_discourse_marker(model, tokenizer, sent1, sent2, device)
-    # print(f"Predicted discourse marker: {marker} (confidence: {confidence:.2f})")
 
 if __name__ == '__main__':
     main()

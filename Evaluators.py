@@ -35,7 +35,7 @@ def calculate_distinct_1_2(generated_text):
 def evaluate_coref_coherence(story, nlp):
     clusters = get_coref_clusters(story, nlp)
     if clusters == -1:
-        print(f"Story ERR!! {story}")
+        # print(f"Story ERR!! {story}")
         return 0
     num_chains = len(clusters)
     if num_chains == 0:

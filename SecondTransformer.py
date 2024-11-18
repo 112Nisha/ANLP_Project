@@ -118,7 +118,7 @@ def decode_output(model, outputs):
 
 def decode_output_gpt2(tokenizer, outputs):
     output_indices = torch.argmax(outputs.logits, dim=-1)  # shape will be [batch_size, sequence_length]
-    print(type(output_indices))
+    # print(type(output_indices))
     decoded_sentences = []
     for sequence in output_indices:
         decoded_sentence = tokenizer.decode(sequence.tolist(), skip_special_tokens=True)
